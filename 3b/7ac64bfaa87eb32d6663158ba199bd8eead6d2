@@ -1,0 +1,43 @@
+backend/db.js
+  c7c8debdc1b4511a 1-14
+backend/server.js
+  c7c8debdc1b4511a 1-35
+frontend/index.html
+  c7c8debdc1b4511a 1-787
+README.md
+  c7c8debdc1b4511a 1-109
+backend/routes/perguntas.js
+  c7c8debdc1b4511a 1-25
+spec.md
+  c7c8debdc1b4511a 1-239
+.gitignore
+  c7c8debdc1b4511a 1-3
+schema.sql
+  c7c8debdc1b4511a 1-100
+backend/routes/candidatos.js
+  c7c8debdc1b4511a 1-113
+backend/package.json
+  c7c8debdc1b4511a 1-18
+backend/routes/vagas.js
+  c7c8debdc1b4511a 1-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.3",
+  "base_commit_sha": "3b7ac64bfaa87eb32d6663158ba199bd8eead6d2",
+  "prompts": {
+    "c7c8debdc1b4511a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf1d16ef-a2eb-4109-a4c7-d849a691ee8b",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "dsfabbio",
+      "messages": [],
+      "total_additions": 1544,
+      "total_deletions": 0,
+      "accepted_lines": 1544,
+      "overriden_lines": 0
+    }
+  }
+}
