@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IS Network — Sistema de Entrevistas | Mercado Livre</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#00b1ea', dark: '#0088b2' },
+            surface: { DEFAULT: '#0f172a', card: '#1e293b', border: '#334155' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .tab-active { border-bottom: 2px solid #00b1ea; color: #00b1ea; }
+    .tab-inactive { border-bottom: 2px solid transparent; color: #94a3b8; }
+    .tab-inactive:hover { color: #cbd5e1; border-bottom-color: #475569; }
+    .btn-acertou { background: #059669; }
+    .btn-acertou:hover { background: #047857; }
+    .btn-acertou.active { background: #10b981; box-shadow: 0 0 0 2px #10b981, 0 0 0 4px #064e3b; }
+    .btn-errou { background: #dc2626; }
+    .btn-errou:hover { background: #b91c1c; }
+    .btn-errou.active { background: #ef4444; box-shadow: 0 0 0 2px #ef4444, 0 0 0 4px #7f1d1d; }
+    .score-bar { transition: width 0.6s ease; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
+    input, select, textarea { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 0.5rem; padding: 0.5rem 0.75rem; width: 100%; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #00b1ea; box-shadow: 0 0 0 2px rgba(0,177,234,0.2); }
+    .badge-hard { background: #7f1d1d; color: #fca5a5; }
+    .badge-medium { background: #78350f; color: #fcd34d; }
+    .badge-normal { background: #1e3a5f; color: #93c5fd; }
+    .badge-cat { background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; padding: 0.75rem 1.25rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.4); animation: fadeIn 0.3s ease; }
+    .toast-success { background: #064e3b; border: 1px solid #10b981; color: #6ee7b7; }
+    .toast-error { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; }
+    .tech-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid #334155; background: #0f172a; color: #94a3b8; transition: all 0.15s; }
+    .tech-chip.selected { background: #0c4a6e; border-color: #0ea5e9; color: #38bdf8; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b border-slate-700 bg-slate-900 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+      </div>
+      <div>
+        <div class="text-sm font-bold text-white leading-none">IS Network</div>
+        <div class="text-xs text-slate-400 leading-none mt-0.5">Sistema de Entrevistas</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div id="health-dot" class="w-2 h-2 rounded-full bg-slate-600"></div>
+      <span class="text-xs text-slate-400">Mercado Livre</span>
+    </div>
+  </div>
+  <!-- Nav Tabs -->
+  <div class="max-w-7xl mx-auto px-6 flex gap-6">
+    <button onclick="showTab('vagas')" id="tab-vagas" class="tab-active py-3 px-1 text-sm font-medium transition-all">📋 Vagas</button>
+    <button onclick="showTab('candidatos')" id="tab-candidatos" class="tab-inactive py-3 px-1 text-sm font-medium transition-all">👤 Candidatos</button>
+    <button onclick="showTab('questionario')" id="tab-questionario" class="tab-inactive py-3 px-1 text-sm font-medium transition-all">❓ Questionário</button>
+    <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-inactive py-3 px-1 text-sm font-medium transition-all">📊 Dashboard</button>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- ===== TAB: VAGAS ===== -->
+  <div id="page-vagas" class="fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">Vagas</h1>
+        <p class="text-sm text-slate-400 mt-0.5">Gerencie as vagas disponíveis para entrevista</p>
+      </div>
+      <button onclick="abrirModalNovaVaga()" class="bg-brand hover:bg-brand-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">+ Nova Vaga</button>
+    </div>
+
+    <div id="vagas-list" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+
+    <!-- Modal Nova/Editar Vaga -->
+    <div id="modal-vaga" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div class="card w-full max-w-md p-6">
+        <h2 id="modal-vaga-title" class="text-lg font-bold text-white mb-4">Nova Vaga</h2>
+        <input type="hidden" id="vaga-edit-id" />
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">ID da Vaga <span class="text-slate-500">(use o ID do sistema de RH)</span></label>
+            <input id="vaga-id-custom" type="number" min="1" placeholder="Ex: 4521 — deixe em branco para gerar automaticamente" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">Local *</label>
+            <input id="vaga-local" type="text" placeholder="Ex: Curitiba FF, São Paulo HQ..." />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">Descrição</label>
+            <textarea id="vaga-desc" rows="3" placeholder="Detalhes da vaga..."></textarea>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button onclick="salvarVaga()" id="btn-salvar-vaga" class="flex-1 bg-brand hover:bg-brand-dark text-white font-semibold py-2 rounded-lg transition-colors">Criar Vaga</button>
+          <button onclick="fecharModalVaga()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-2 rounded-lg transition-colors">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: CANDIDATOS ===== -->
+  <div id="page-candidatos" class="fade-in hidden">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">Candidatos</h1>
+        <p class="text-sm text-slate-400 mt-0.5">Cadastre e gerencie candidatos por vaga</p>
+      </div>
+      <button onclick="abrirModalCandidato()" class="bg-brand hover:bg-brand-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">+ Novo Candidato</button>
+    </div>
+
+    <div id="candidatos-list" class="space-y-3"></div>
+
+    <!-- Modal Novo/Editar Candidato -->
+    <div id="modal-candidato" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div class="card w-full max-w-lg p-6 my-4">
+        <h2 id="modal-cand-title" class="text-lg font-bold text-white mb-4">Novo Candidato</h2>
+        <input type="hidden" id="cand-edit-id" />
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+              <label class="text-xs text-slate-400 mb-1 block">Nome Completo *</label>
+              <input id="cand-nome" type="text" placeholder="Nome do candidato" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 mb-1 block">LinkedIn</label>
+              <input id="cand-linkedin" type="url" placeholder="https://linkedin.com/in/..." />
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 mb-1 block">Pretensão Salarial</label>
+              <input id="cand-salario" type="text" placeholder="R$ 0,00" oninput="mascaraMoeda(this)" />
+            </div>
+            <div class="col-span-2">
+              <label class="text-xs text-slate-400 mb-1 block">Vaga</label>
+              <select id="cand-vaga">
+                <option value="">— Selecionar vaga —</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-400 mb-2 block">Tecnologias que conhece</label>
+            <div id="tech-chips" class="flex flex-wrap gap-2"></div>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button onclick="salvarCandidato()" id="btn-salvar-cand" class="flex-1 bg-brand hover:bg-brand-dark text-white font-semibold py-2 rounded-lg transition-colors">Cadastrar</button>
+          <button onclick="fecharModalCandidato()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-2 rounded-lg transition-colors">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: QUESTIONÁRIO ===== -->
+  <div id="page-questionario" class="fade-in hidden">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">Questionário Técnico</h1>
+        <p class="text-sm text-slate-400 mt-0.5">52 perguntas extraídas do questionário base</p>
+      </div>
+    </div>
+
+    <!-- Seletor de candidato -->
+    <div class="card p-4 mb-6 flex flex-wrap gap-4 items-end">
+      <div class="flex-1 min-w-48">
+        <label class="text-xs text-slate-400 mb-1 block">Candidato em entrevista</label>
+        <select id="quiz-candidato" onchange="carregarRespostasExistentes()">
+          <option value="">— Selecionar candidato —</option>
+        </select>
+      </div>
+      <div id="quiz-score-inline" class="text-sm text-slate-400 hidden">
+        Score: <span id="quiz-score-val" class="text-white font-bold"></span>
+      </div>
+      <button onclick="salvarRespostas()" class="bg-brand hover:bg-brand-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">💾 Salvar Respostas</button>
+    </div>
+
+    <div id="perguntas-container" class="space-y-3"></div>
+  </div>
+
+  <!-- ===== TAB: DASHBOARD ===== -->
+  <div id="page-dashboard" class="fade-in hidden">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">Dashboard de Resultados</h1>
+        <p class="text-sm text-slate-400 mt-0.5">Score técnico por candidato</p>
+      </div>
+      <div class="flex gap-3">
+        <select id="dash-filtro-vaga" onchange="carregarDashboard()" class="text-sm min-w-40">
+          <option value="">Todas as vagas</option>
+        </select>
+        <button onclick="carregarDashboard()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm px-3 py-2 rounded-lg">↻</button>
+      </div>
+    </div>
+
+    <!-- Stats cards -->
+    <div id="dash-stats" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6"></div>
+
+    <!-- Candidatos ranking -->
+    <div class="card overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+        <span class="text-sm font-semibold text-white">Ranking de Candidatos</span>
+        <span class="text-xs text-slate-400">ordenado por score</span>
+      </div>
+      <div id="dash-ranking" class="divide-y divide-slate-700/50"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const API = '/api';
+let allPerguntas = [];
+let respostasAtivas = {}; // { pergunta_id: true/false }
+let tecSelecionadas = new Set();
+
+const TECNOLOGIAS = ['FIREWALL','SWITCH','WIFI','IPAM','NAC','GESTÃO CENTRALIZADA','LINGUAGEM DE PROGRAMAÇÃO'];
+
+// ─── UTILS ───────────────────────────────────────────
+function showTab(name) {
+  ['vagas','candidatos','questionario','dashboard'].forEach(t => {
+    document.getElementById(`page-${t}`).classList.add('hidden');
+    document.getElementById(`tab-${t}`).className = 'tab-inactive py-3 px-1 text-sm font-medium transition-all';
+  });
+  document.getElementById(`page-${name}`).classList.remove('hidden');
+  document.getElementById(`tab-${name}`).className = 'tab-active py-3 px-1 text-sm font-medium transition-all';
+
+  if (name === 'vagas') carregarVagas();
+  if (name === 'candidatos') carregarCandidatos();
+  if (name === 'questionario') { carregarPerguntas(); carregarCandidatosSelect('quiz-candidato'); }
+  if (name === 'dashboard') { carregarDashboard(); carregarVagasSelect('dash-filtro-vaga'); }
+}
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function pct(obtained, total) {
+  if (!total) return 0;
+  return Math.round((obtained / total) * 100);
+}
+
+function scoreColor(p) {
+  if (p >= 75) return 'bg-emerald-500';
+  if (p >= 50) return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
+function scoreLabel(p) {
+  if (p >= 75) return { text: 'ACIMA', cls: 'text-emerald-400 bg-emerald-900/40 border-emerald-700' };
+  if (p >= 50) return { text: 'MEDIANO', cls: 'text-amber-400 bg-amber-900/40 border-amber-700' };
+  return { text: 'ABAIXO', cls: 'text-red-400 bg-red-900/40 border-red-700' };
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro na API'); }
+  return r.json();
+}
+
+// ─── HEALTH CHECK ────────────────────────────────────
+async function checkHealth() {
+  try {
+    await fetch(API + '/health');
+    document.getElementById('health-dot').className = 'w-2 h-2 rounded-full bg-emerald-400';
+  } catch {
+    document.getElementById('health-dot').className = 'w-2 h-2 rounded-full bg-red-500';
+  }
+}
+
+// ─── UTILS MOEDA ─────────────────────────────────────
+function mascaraMoeda(input) {
+  let v = input.value.replace(/\D/g, '');
+  if (!v) { input.value = ''; return; }
+  v = (parseInt(v, 10) / 100).toFixed(2);
+  input.value = 'R$ ' + v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// ─── VAGAS ───────────────────────────────────────────
+function abrirModalNovaVaga() {
+  document.getElementById('vaga-edit-id').value = '';
+  document.getElementById('vaga-id-custom').value = '';
+  document.getElementById('vaga-id-custom').disabled = false;
+  document.getElementById('vaga-local').value = '';
+  document.getElementById('vaga-desc').value = '';
+  document.getElementById('modal-vaga-title').textContent = 'Nova Vaga';
+  document.getElementById('btn-salvar-vaga').textContent = 'Criar Vaga';
+  document.getElementById('modal-vaga').classList.remove('hidden');
+}
+
+function abrirEditarVaga(id, local, descricao) {
+  document.getElementById('vaga-edit-id').value = id;
+  document.getElementById('vaga-id-custom').value = id;
+  document.getElementById('vaga-id-custom').disabled = false;
+  document.getElementById('vaga-local').value = local;
+  document.getElementById('vaga-desc').value = descricao;
+  document.getElementById('modal-vaga-title').textContent = 'Editar Vaga';
+  document.getElementById('btn-salvar-vaga').textContent = 'Salvar Alterações';
+  document.getElementById('modal-vaga').classList.remove('hidden');
+}
+
+function fecharModalVaga() {
+  document.getElementById('modal-vaga').classList.add('hidden');
+}
+
+async function salvarVaga() {
+  const oldId = document.getElementById('vaga-edit-id').value;
+  const newId = document.getElementById('vaga-id-custom').value.trim();
+  const local = document.getElementById('vaga-local').value.trim();
+  const descricao = document.getElementById('vaga-desc').value.trim();
+  if (!local) return toast('Informe o local da vaga', 'error');
+  try {
+    if (oldId) {
+      await api('/vagas/' + oldId, { method: 'PUT', body: JSON.stringify({ new_id: newId ? Number(newId) : null, local, descricao }) });
+      toast('Vaga atualizada!');
+    } else {
+      await api('/vagas', { method: 'POST', body: JSON.stringify({ id: newId ? Number(newId) : undefined, local, descricao }) });
+      toast('Vaga criada com sucesso!');
+    }
+    fecharModalVaga();
+    carregarVagas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function carregarVagas() {
+  try {
+    const vagas = await api('/vagas');
+    const el = document.getElementById('vagas-list');
+    if (!vagas.length) {
+      el.innerHTML = '<div class="col-span-3 text-center py-16 text-slate-500"><div class="text-4xl mb-2">📋</div><div>Nenhuma vaga cadastrada</div><div class="text-xs mt-1">Clique em "Nova Vaga" para começar</div></div>';
+      return;
+    }
+    el.innerHTML = vagas.map(v => {
+      const encerrada = v.status === 'encerrada';
+      return `
+      <div class="card p-5 transition-colors ${encerrada ? 'opacity-60 border-slate-600' : 'hover:border-brand/50'}">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-xs text-slate-500">ID #${v.id}</span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded-full border ${encerrada ? 'bg-red-900/40 border-red-700 text-red-400' : 'bg-emerald-900/40 border-emerald-700 text-emerald-400'}">
+                ${encerrada ? '● Encerrada' : '● Aberta'}
+              </span>
+            </div>
+            <div class="font-bold text-white">${v.local}</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="abrirEditarVaga(${v.id}, \`${v.local.replace(/`/g,'\\`')}\`, \`${(v.descricao||'').replace(/`/g,'\\`')}\`)" class="text-slate-500 hover:text-brand transition-colors text-xs px-1.5 py-0.5 rounded hover:bg-slate-700">✎</button>
+            <button onclick="deletarVaga(${v.id})" class="text-slate-500 hover:text-red-400 transition-colors text-xs px-1.5 py-0.5 rounded hover:bg-slate-700">✕</button>
+          </div>
+        </div>
+        ${v.descricao ? `<p class="text-xs text-slate-400 mb-3">${v.descricao}</p>` : ''}
+        <div class="flex items-center justify-between pt-3 border-t border-slate-700">
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-300">${v.total_candidatos}</div>
+            <span class="text-xs text-slate-400">${v.total_candidatos == 1 ? 'candidato' : 'candidatos'}</span>
+          </div>
+          <button onclick="toggleStatusVaga(${v.id})" class="text-xs px-2.5 py-1 rounded-lg border transition-colors ${encerrada ? 'border-emerald-700 text-emerald-400 hover:bg-emerald-900/30' : 'border-slate-600 text-slate-400 hover:border-red-600 hover:text-red-400 hover:bg-red-900/20'}">
+            ${encerrada ? '↺ Reabrir' : '✓ Encerrar Vaga'}
+          </button>
+        </div>
+      </div>
+    `}).join('');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+
+async function toggleStatusVaga(id) {
+  try {
+    const r = await api('/vagas/' + id + '/status', { method: 'PATCH' });
+    toast(r.status === 'encerrada' ? 'Vaga encerrada!' : 'Vaga reaberta!');
+    carregarVagas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deletarVaga(id) {
+  if (!confirm('Deletar esta vaga? Os candidatos não serão removidos.')) return;
+  try {
+    await api('/vagas/' + id, { method: 'DELETE' });
+    toast('Vaga removida');
+    carregarVagas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function carregarVagasSelect(selectId) {
+  try {
+    const vagas = await api('/vagas');
+    const sel = document.getElementById(selectId);
+    const defaultOpt = sel.options[0].outerHTML;
+    sel.innerHTML = defaultOpt + vagas.map(v => `<option value="${v.id}">${v.local} (#${v.id})</option>`).join('');
+  } catch {}
+}
+
+// ─── CANDIDATOS ──────────────────────────────────────
+async function carregarCandidatos() {
+  try {
+    const candidatos = await api('/candidatos');
+    const el = document.getElementById('candidatos-list');
+    if (!candidatos.length) {
+      el.innerHTML = '<div class="text-center py-16 text-slate-500"><div class="text-4xl mb-2">👤</div><div>Nenhum candidato cadastrado</div></div>';
+      return;
+    }
+    el.innerHTML = candidatos.map(c => {
+      const p = pct(c.pontos_obtidos, c.pontos_totais);
+      const lbl = scoreLabel(p);
+      let tecs = [];
+      try {
+        const raw = typeof c.tecnologias === 'string' ? JSON.parse(c.tecnologias) : c.tecnologias;
+        if (raw && typeof raw === 'object') {
+          tecs = Object.entries(raw).filter(([,v]) => v).map(([k]) => k);
+        }
+      } catch {}
+      return `
+        <div class="card p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold text-white">${c.nome}</span>
+              ${c.vaga_local ? `<span class="badge-cat px-2 py-0.5 rounded-full">${c.vaga_local}</span>` : ''}
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-1">
+              ${tecs.map(t => `<span class="badge-cat px-2 py-0.5 rounded-full">${t}</span>`).join('')}
+            </div>
+            ${c.pretensao_salarial ? `<div class="text-xs text-slate-500 mt-1">💰 ${c.pretensao_salarial}</div>` : ''}
+          </div>
+          <div class="sm:text-right flex sm:flex-col items-center sm:items-end gap-3">
+            <div>
+              <div class="text-2xl font-bold text-white">${p}%</div>
+              <div class="text-xs text-slate-400">${c.perguntas_respondidas || 0}/52 respondidas</div>
+            </div>
+            <span class="border text-xs font-bold px-2 py-0.5 rounded-full ${lbl.cls}">${lbl.text}</span>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="abrirQuestionarioPara(${c.id})" class="text-xs bg-slate-700 hover:bg-brand text-slate-200 px-3 py-1.5 rounded-lg transition-colors">Entrevistar</button>
+            <button onclick="abrirEditarCandidato(${c.id})" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition-colors">✎ Editar</button>
+            <button onclick="deletarCandidato(${c.id})" class="text-xs bg-slate-700 hover:bg-red-900 text-slate-400 hover:text-red-300 px-3 py-1.5 rounded-lg transition-colors">Remover</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function carregarCandidatosSelect(selectId) {
+  try {
+    const candidatos = await api('/candidatos');
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = '<option value="">— Selecionar candidato —</option>' +
+      candidatos.map(c => `<option value="${c.id}">${c.nome}${c.vaga_local ? ' · ' + c.vaga_local : ''}</option>`).join('');
+  } catch {}
+}
+
+function fecharModalCandidato() {
+  document.getElementById('modal-candidato').classList.add('hidden');
+}
+
+function abrirModalCandidato() {
+  document.getElementById('cand-edit-id').value = '';
+  document.getElementById('cand-nome').value = '';
+  document.getElementById('cand-linkedin').value = '';
+  document.getElementById('cand-salario').value = '';
+  document.getElementById('modal-cand-title').textContent = 'Novo Candidato';
+  document.getElementById('btn-salvar-cand').textContent = 'Cadastrar';
+  tecSelecionadas.clear();
+  carregarVagasSelect('cand-vaga');
+  renderTechChips();
+  document.getElementById('modal-candidato').classList.remove('hidden');
+}
+
+async function abrirEditarCandidato(id) {
+  try {
+    const c = await api('/candidatos/' + id);
+    document.getElementById('cand-edit-id').value = c.id;
+    document.getElementById('cand-nome').value = c.nome || '';
+    document.getElementById('cand-linkedin').value = c.linkedin || '';
+    document.getElementById('cand-salario').value = c.pretensao_salarial || '';
+    document.getElementById('modal-cand-title').textContent = 'Editar Candidato';
+    document.getElementById('btn-salvar-cand').textContent = 'Salvar Alterações';
+    tecSelecionadas.clear();
+    try {
+      const raw = typeof c.tecnologias === 'string' ? JSON.parse(c.tecnologias) : c.tecnologias;
+      if (raw) Object.entries(raw).forEach(([k, v]) => { if (v) tecSelecionadas.add(k); });
+    } catch {}
+    await carregarVagasSelect('cand-vaga');
+    if (c.vaga_id) document.getElementById('cand-vaga').value = c.vaga_id;
+    renderTechChips();
+    document.getElementById('modal-candidato').classList.remove('hidden');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderTechChips() {
+  const el = document.getElementById('tech-chips');
+  el.innerHTML = TECNOLOGIAS.map(t => `
+    <span class="tech-chip ${tecSelecionadas.has(t) ? 'selected' : ''}" onclick="toggleTec('${t}', this)">
+      ${t}
+    </span>
+  `).join('');
+}
+
+function toggleTec(t, el) {
+  if (tecSelecionadas.has(t)) { tecSelecionadas.delete(t); el.classList.remove('selected'); }
+  else { tecSelecionadas.add(t); el.classList.add('selected'); }
+}
+
+async function salvarCandidato() {
+  const id = document.getElementById('cand-edit-id').value;
+  const nome = document.getElementById('cand-nome').value.trim();
+  const linkedin = document.getElementById('cand-linkedin').value.trim();
+  const pretensao_salarial = document.getElementById('cand-salario').value.trim();
+  const vaga_id = document.getElementById('cand-vaga').value;
+  if (!nome) return toast('Informe o nome do candidato', 'error');
+
+  const tecnologias = {};
+  TECNOLOGIAS.forEach(t => { tecnologias[t] = tecSelecionadas.has(t); });
+
+  try {
+    if (id) {
+      await api('/candidatos/' + id, { method: 'PUT', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias }) });
+      toast('Candidato atualizado!');
+    } else {
+      await api('/candidatos', { method: 'POST', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias }) });
+      toast('Candidato cadastrado!');
+    }
+    fecharModalCandidato();
+    tecSelecionadas.clear();
+    carregarCandidatos();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deletarCandidato(id) {
+  if (!confirm('Remover este candidato e todas as suas respostas?')) return;
+  try {
+    await api('/candidatos/' + id, { method: 'DELETE' });
+    toast('Candidato removido');
+    carregarCandidatos();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function abrirQuestionarioPara(candidatoId) {
+  showTab('questionario');
+  setTimeout(async () => {
+    const sel = document.getElementById('quiz-candidato');
+    await carregarCandidatosSelect('quiz-candidato');
+    sel.value = candidatoId;
+    carregarRespostasExistentes();
+  }, 100);
+}
+
+// ─── QUESTIONÁRIO ────────────────────────────────────
+async function carregarPerguntas() {
+  try {
+    allPerguntas = await api('/perguntas');
+    renderPerguntas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderPerguntas() {
+  const container = document.getElementById('perguntas-container');
+  const categorias = [...new Set(allPerguntas.map(p => p.categoria))];
+
+  container.innerHTML = categorias.map(cat => {
+    const pergs = allPerguntas.filter(p => p.categoria === cat);
+    return `
+      <div class="card overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+          <span class="font-semibold text-white text-sm">${cat}</span>
+          <span class="text-xs text-slate-500">${pergs.length} pergunta${pergs.length > 1 ? 's' : ''}</span>
+        </div>
+        <div class="divide-y divide-slate-700/40">
+          ${pergs.map(p => renderPergunta(p)).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderPergunta(p) {
+  const resp = respostasAtivas[p.id];
+  const acertouClass = resp === true ? 'active' : '';
+  const errouClass = resp === false ? 'active' : '';
+  const difBadge = p.dificuldade === 'HARD'
+    ? '<span class="badge-hard text-xs px-2 py-0.5 rounded-full font-semibold">HARD</span>'
+    : p.dificuldade === 'MEDIUM'
+    ? '<span class="badge-medium text-xs px-2 py-0.5 rounded-full font-semibold">MEDIUM</span>'
+    : '';
+
+  const gabarito = p.gabarito ? `
+    <div class="mt-2 gabarito-box hidden" id="gabarito-${p.id}">
+      <div class="bg-slate-900/70 border border-slate-600/50 rounded-lg px-3 py-2.5 mt-1">
+        <div class="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Resposta de referência</div>
+        <p class="text-xs text-slate-300 leading-relaxed">${p.gabarito}</p>
+      </div>
+    </div>
+    <button onclick="toggleGabarito(${p.id})" id="btn-gabarito-${p.id}" class="mt-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1">
+      <span id="gabarito-icon-${p.id}">▶</span> Ver resposta de referência
+    </button>
+  ` : '';
+
+  return `
+    <div class="px-5 py-3.5 flex items-start gap-4 hover:bg-slate-800/30 transition-colors" id="perg-row-${p.id}">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-0.5">
+          ${difBadge}
+          <span class="text-xs text-slate-500">${p.pontos} pt${p.pontos > 1 ? 's' : ''}</span>
+        </div>
+        <p class="text-sm text-slate-200 leading-snug">${p.texto}</p>
+        ${gabarito}
+      </div>
+      <div class="flex gap-2 shrink-0 mt-1">
+        <button onclick="marcarResposta(${p.id}, true)" id="btn-acertou-${p.id}" class="btn-acertou ${acertouClass} text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all">✓ Acertou</button>
+        <button onclick="marcarResposta(${p.id}, false)" id="btn-errou-${p.id}" class="btn-errou ${errouClass} text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all">✗ Errou</button>
+      </div>
+    </div>
+  `;
+}
+
+function toggleGabarito(id) {
+  const box = document.getElementById(`gabarito-${id}`);
+  const icon = document.getElementById(`gabarito-icon-${id}`);
+  const btn = document.getElementById(`btn-gabarito-${id}`);
+  const visible = !box.classList.contains('hidden');
+  box.classList.toggle('hidden', visible);
+  icon.textContent = visible ? '▶' : '▼';
+  btn.innerHTML = `<span id="gabarito-icon-${id}">${visible ? '▶' : '▼'}</span> ${visible ? 'Ver resposta de referência' : 'Ocultar resposta'}`;
+}
+
+function marcarResposta(perguntaId, acertou) {
+  respostasAtivas[perguntaId] = acertou;
+
+  const btnA = document.getElementById(`btn-acertou-${perguntaId}`);
+  const btnE = document.getElementById(`btn-errou-${perguntaId}`);
+  btnA.classList.toggle('active', acertou === true);
+  btnE.classList.toggle('active', acertou === false);
+
+  atualizarScoreInline();
+}
+
+function atualizarScoreInline() {
+  const respondidas = Object.keys(respostasAtivas).length;
+  if (!respondidas) { document.getElementById('quiz-score-inline').classList.add('hidden'); return; }
+
+  let obtidos = 0, total = 0;
+  allPerguntas.forEach(p => {
+    if (respostasAtivas[p.id] !== undefined) {
+      total += p.pontos;
+      if (respostasAtivas[p.id]) obtidos += p.pontos;
+    }
+  });
+  const p = pct(obtidos, total);
+  document.getElementById('quiz-score-inline').classList.remove('hidden');
+  document.getElementById('quiz-score-val').textContent = `${obtidos}/${total} pts (${p}%)`;
+}
+
+async function carregarRespostasExistentes() {
+  const candidatoId = document.getElementById('quiz-candidato').value;
+  respostasAtivas = {};
+  if (!candidatoId) { renderPerguntas(); atualizarScoreInline(); return; }
+
+  try {
+    const c = await api('/candidatos/' + candidatoId);
+    c.respostas.forEach(r => { respostasAtivas[r.pergunta_id] = r.acertou === 1 || r.acertou === true; });
+    renderPerguntas();
+    atualizarScoreInline();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function salvarRespostas() {
+  const candidatoId = document.getElementById('quiz-candidato').value;
+  if (!candidatoId) return toast('Selecione um candidato primeiro', 'error');
+  if (!Object.keys(respostasAtivas).length) return toast('Nenhuma resposta marcada', 'error');
+
+  const respostas = Object.entries(respostasAtivas).map(([pergunta_id, acertou]) => ({ pergunta_id: Number(pergunta_id), acertou }));
+
+  try {
+    const r = await api(`/candidatos/${candidatoId}/respostas`, { method: 'POST', body: JSON.stringify({ respostas }) });
+    toast(`${r.saved} respostas salvas com sucesso!`);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── DASHBOARD ───────────────────────────────────────
+async function carregarDashboard() {
+  const vagaId = document.getElementById('dash-filtro-vaga').value;
+  const params = vagaId ? `?vaga_id=${vagaId}` : '';
+
+  try {
+    const candidatos = await api('/candidatos' + params);
+
+    const total = candidatos.length;
+    const comRespostas = candidatos.filter(c => c.perguntas_respondidas > 0).length;
+    const scores = candidatos.filter(c => c.pontos_totais > 0).map(c => pct(c.pontos_obtidos, c.pontos_totais));
+    const mediaScore = scores.length ? Math.round(scores.reduce((a,b) => a+b, 0) / scores.length) : 0;
+    const acima = scores.filter(s => s >= 75).length;
+
+    document.getElementById('dash-stats').innerHTML = [
+      { label: 'Total Candidatos', value: total, icon: '👤' },
+      { label: 'Entrevistados', value: comRespostas, icon: '✅' },
+      { label: 'Score Médio', value: mediaScore + '%', icon: '📊' },
+      { label: 'Acima da Média', value: acima, icon: '⭐' },
+    ].map(s => `
+      <div class="card p-4">
+        <div class="text-2xl mb-1">${s.icon}</div>
+        <div class="text-2xl font-bold text-white">${s.value}</div>
+        <div class="text-xs text-slate-400">${s.label}</div>
+      </div>
+    `).join('');
+
+    const sorted = [...candidatos].sort((a, b) => {
+      const pa = pct(a.pontos_obtidos, a.pontos_totais);
+      const pb = pct(b.pontos_obtidos, b.pontos_totais);
+      return pb - pa;
+    });
+
+    const ranking = document.getElementById('dash-ranking');
+    if (!sorted.length) {
+      ranking.innerHTML = '<div class="px-5 py-12 text-center text-slate-500">Nenhum candidato encontrado</div>';
+      return;
+    }
+
+    ranking.innerHTML = sorted.map((c, i) => {
+      const p = pct(c.pontos_obtidos, c.pontos_totais);
+      const lbl = scoreLabel(p);
+      let tecs = [];
+      try {
+        const raw = typeof c.tecnologias === 'string' ? JSON.parse(c.tecnologias) : c.tecnologias;
+        if (raw && typeof raw === 'object') {
+          tecs = Object.entries(raw).filter(([,v]) => v).map(([k]) => k);
+        }
+      } catch {}
+      const medalColor = i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-slate-400' : i === 2 ? 'bg-amber-700' : 'bg-slate-700';
+      return `
+        <div class="px-5 py-4 flex items-center gap-4 hover:bg-slate-800/30 transition-colors">
+          <div class="w-7 h-7 rounded-full ${medalColor} flex items-center justify-center text-xs font-bold text-white shrink-0">${i+1}</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white text-sm">${c.nome}</div>
+            <div class="text-xs text-slate-500">${c.vaga_local || '—'} · ${c.perguntas_respondidas || 0}/52 respondidas</div>
+            <div class="flex flex-wrap gap-1 mt-1">
+              ${tecs.slice(0,4).map(t => `<span class="badge-cat px-1.5 py-0.5 rounded">${t}</span>`).join('')}
+              ${tecs.length > 4 ? `<span class="badge-cat px-1.5 py-0.5 rounded">+${tecs.length-4}</span>` : ''}
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div class="score-bar h-2 rounded-full ${scoreColor(p)}" style="width:${p}%"></div>
+              </div>
+              <span class="text-sm font-bold text-white w-10 text-right">${p}%</span>
+            </div>
+            <span class="border text-xs font-bold px-2 py-0.5 rounded-full ${lbl.cls}">${lbl.text}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Populate filtro vagas
+    await carregarVagasSelect('dash-filtro-vaga');
+    if (vagaId) document.getElementById('dash-filtro-vaga').value = vagaId;
+
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── INIT ────────────────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 30000);
+showTab('vagas');
+</script>
+</body>
+</html>
