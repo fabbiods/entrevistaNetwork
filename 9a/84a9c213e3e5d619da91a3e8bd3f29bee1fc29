@@ -1,0 +1,29 @@
+frontend/index.html
+  9bc6b7dd904ed8e4 25-33,50-55,164-171,176,247-257,450,454-460,463-468,476,478,516,532,538,549-569,572-592,601-602,606,610,613,673,692-693,695,705-707,728,731-737,743-744,748-749,751,766-768,779
+backend/routes/candidatos.js
+  9bc6b7dd904ed8e4 15,17,55,59-60,70,74-75,94
+schema.sql
+  9bc6b7dd904ed8e4 18,35
+spec.md
+  9bc6b7dd904ed8e4 44-45,68,90,92,94,115-116,122-124,129-137,174-176,179-192,195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "9a84a9c213e3e5d619da91a3e8bd3f29bee1fc29",
+  "prompts": {
+    "9bc6b7dd904ed8e4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac8cc99d-cc5a-4d04-80c1-ad581029dc10",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "dsfabbio",
+      "messages": [],
+      "total_additions": 177,
+      "total_deletions": 71,
+      "accepted_lines": 173,
+      "overriden_lines": 0
+    }
+  }
+}
