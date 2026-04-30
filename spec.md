@@ -41,7 +41,8 @@ Banco: `entrevistas_network` (utf8mb4)
 | linkedin | VARCHAR(500) | Opcional |
 | pretensao_salarial | VARCHAR(100) | Armazenado já formatado: "R$ 12.000,00" |
 | vaga_id | INT FK | → vagas ON DELETE SET NULL |
-| tecnologias | JSON | `{ FIREWALL: true, SWITCH: false, ... }` |
+| tecnologias | JSON | `{ "Firewall::Fortigate": true, ... }` — chave no formato `Categoria::Vendor` |
+| aceita_presencialidade | TINYINT(1) NULL | `1` = Sim, `0` = Não, `NULL` = Não informado |
 | created_at | TIMESTAMP | Auto |
 
 ### Tabela: perguntas
@@ -64,7 +65,7 @@ Seed de **45 perguntas** já inserido. Perguntas de AWS Cloud foram removidas.
 | id | INT PK AUTO_INCREMENT | |
 | candidato_id | INT FK | → candidatos ON DELETE CASCADE |
 | pergunta_id | INT FK | → perguntas ON DELETE CASCADE |
-| acertou | BOOLEAN | |
+| acertou | TINYINT(1) NULL | `1` = Acertou, `0` = Errou, `NULL` = Não Perguntado (excluído do score) |
 | created_at | TIMESTAMP | Auto |
 
 UNIQUE KEY em `(candidato_id, pergunta_id)` — usa `ON DUPLICATE KEY UPDATE` para upsert.
@@ -86,11 +87,11 @@ Base: `/api`
 
 ### Candidatos
 
-- `GET /candidatos[?vaga_id=N]` — com score calculado via `SUM(pontos)` / `SUM(CASE acertou)`
+- `GET /candidatos[?vaga_id=N]` — score calculado excluindo respostas com `acertou IS NULL`. Campos: `perguntas_respondidas`, `pontos_obtidos`, `pontos_totais`
 - `GET /candidatos/:id` — inclui array `respostas` com detalhes das perguntas
-- `POST /candidatos` — body: `{ nome, linkedin, pretensao_salarial, vaga_id, tecnologias }`
+- `POST /candidatos` — body: `{ nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade }`
 - `PUT /candidatos/:id` — mesmos campos do POST
-- `POST /candidatos/:id/respostas` — body: `{ respostas: [{ pergunta_id, acertou }] }` — upsert
+- `POST /candidatos/:id/respostas` — body: `{ respostas: [{ pergunta_id, acertou }] }` — `acertou` pode ser `true`, `false` ou `null` (N/P). Upsert via `ON DUPLICATE KEY UPDATE`
 - `DELETE /candidatos/:id` — cascade remove respostas
 
 ### Perguntas
@@ -111,26 +112,29 @@ SPA single-file em `frontend/index.html`. Servido estaticamente pelo Express.
 ### Abas
 
 1. **Vagas** — cards com local, ID, status badge (● Aberta / ● Encerrada), contagem de candidatos, botão "✓ Encerrar Vaga" / "↺ Reabrir" (toggle), ícone de edição ✎ e remoção ✕. Modal unificado para criar e editar com campo de ID customizável
-2. **Candidatos** — lista com score, badge de nível, tech chips, pretensão salarial formatada. Botões: "Entrevistar" (navega para questionário pré-selecionado), "✎ Editar", "Remover". Modal unificado criar/editar com máscara de moeda no campo de salário
-3. **Questionário** — selector de candidato, 45 perguntas agrupadas por categoria. Cada pergunta tem badges HARD/MEDIUM, botões "✓ Acertou / ✗ Errou" com estado visual CSS (active), gabarito expansível ("▶ Ver resposta de referência"). Score inline atualizado em tempo real. Botão "💾 Salvar Respostas" faz POST com upsert
+2. **Candidatos** — lista com score, badge de nível, tecnologias agrupadas por categoria (ex: `Firewall: FortiGate, Palo Alto`), pretensão salarial e flag de presencialidade. Botões: "Entrevistar", "✎ Editar", "Remover". Modal unificado criar/editar com: máscara de moeda, select de presencialidade 2x/semana (Sim/Não/Não informado), e seletor de tecnologias por grupo expansível
+3. **Questionário** — selector de candidato, 45 perguntas agrupadas por categoria. Cada pergunta tem badges HARD/MEDIUM e **três botões de resposta**: "✓ Acertou" (verde), "✗ Errou" (vermelho), "— N/P" (cinza = Não Perguntado, excluído do score). Estado visual por CSS (active com borda luminosa + glow). Linha da pergunta recebe fundo colorido conforme resposta. Gabarito expansível. Score inline exclui perguntas N/P do denominador. Botão "💾 Salvar Respostas" faz POST com upsert
 4. **Dashboard** — 4 stat cards (total, entrevistados, score médio, acima da média), ranking ordenado por score desc com barra de progresso colorida, filtro por vaga
 
 ### Variáveis JS globais
 
 - `allPerguntas` — array de perguntas carregado a cada abertura da aba
-- `respostasAtivas` — `{ [pergunta_id]: boolean }` — estado da sessão atual
-- `tecSelecionadas` — `Set<string>` — tecnologias selecionadas no modal de candidato
+- `respostasAtivas` — `{ [pergunta_id]: true | false | null }` — `null` = Não Perguntado
+- `tecSelecionadas` — `Set<string>` — valores no formato `"Categoria::Vendor"` (ex: `"Firewall::FortiGate"`)
+- `TECNOLOGIAS_MAP` — `{ [categoria]: string[] }` — mapa com 7 categorias e 6 vendors cada
 
 ### Funções utilitárias JS
 
 ```js
-pct(obtained, total)    // retorna 0-100
-scoreLabel(p)           // retorna { text, cls } para badge ACIMA/MEDIANO/ABAIXO
-scoreColor(p)           // retorna classe Tailwind para barra de progresso
-mascaraMoeda(input)     // formata campo de texto para R$ 0.000,00 em tempo real
-toggleGabarito(id)      // expande/colapsa o box de gabarito de uma pergunta
-api(path, opts)         // wrapper fetch com header JSON e tratamento de erro
-toast(msg, type)        // notificação temporária (success/error) no canto inferior direito
+pct(obtained, total)       // retorna 0-100
+scoreLabel(p)              // retorna { text, cls } para badge ACIMA/MEDIANO/ABAIXO
+scoreColor(p)              // retorna classe Tailwind para barra de progresso
+mascaraMoeda(input)        // formata campo de texto para R$ 0.000,00 em tempo real
+toggleGabarito(id)         // expande/colapsa o box de gabarito de uma pergunta
+toggleTechGroup(header)    // expande/colapsa grupo de tecnologias no modal de candidato
+toggleTec(key, el)         // seleciona/deseleciona vendor; key = "Categoria::Vendor"
+api(path, opts)            // wrapper fetch com header JSON e tratamento de erro
+toast(msg, type)           // notificação temporária (success/error) no canto inferior direito
 ```
 
 ### Modais
@@ -167,14 +171,28 @@ Pontos variam de 1 a 4. Score = pontos_obtidos / pontos_totais_respondidos × 10
 
 ---
 
-## Tecnologias do Candidato (chips)
+## Tecnologias do Candidato
 
-Array fixo no frontend:
+Seletor agrupado por categoria, com grupos colapsáveis. Cada grupo exibe contador de itens selecionados no cabeçalho.
+
 ```js
-['FIREWALL', 'SWITCH', 'WIFI', 'IPAM', 'NAC', 'GESTÃO CENTRALIZADA', 'LINGUAGEM DE PROGRAMAÇÃO']
+TECNOLOGIAS_MAP = {
+  'Firewall':              ['Fortinet FortiGate', 'Palo Alto Networks', 'Check Point', 'Cisco FTD/ASA', 'Sophos XGS', 'pfSense / OPNsense'],
+  'Switch':                ['Cisco Catalyst/Nexus', 'HP Aruba', 'Juniper EX/QFX', 'Huawei CloudEngine', 'Ruckus ICX', 'Dell EMC PowerSwitch'],
+  'Wi-Fi':                 ['Cisco Meraki / Catalyst', 'Aruba Networks', 'Ubiquiti UniFi', 'Ruckus SmartZone', 'Fortinet FortiAP', 'Extreme Networks'],
+  'IPAM':                  ['Infoblox', 'NetBox', 'phpIPAM', 'SolarWinds IPAM', 'BlueCat', 'Micetro (Men&Mice)'],
+  'NAC':                   ['Cisco ISE', 'Aruba ClearPass', 'FortiNAC', 'Forescout', 'Portnox', 'PacketFence'],
+  'Gestão Centralizada':   ['FortiManager', 'Aruba Central', 'Cisco DNA Center', 'Juniper Mist', 'SolarWinds NMS', 'PRTG Network Monitor'],
+  'Linguagem / Automação': ['Python', 'Ansible', 'Terraform', 'Bash / Shell', 'PowerShell', 'Go'],
+}
 ```
 
-Armazenado como JSON no banco: `{ "FIREWALL": true, "SWITCH": false, ... }`
+Armazenado como JSON no banco com chave no formato `"Categoria::Vendor"`:
+```json
+{ "Firewall::Fortinet FortiGate": true, "Switch::Cisco Catalyst/Nexus": true }
+```
+
+No card do candidato, exibido agrupado: `Firewall: FortiGate, Palo Alto`
 
 ---
 

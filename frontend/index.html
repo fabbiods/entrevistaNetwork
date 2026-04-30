@@ -22,12 +22,15 @@
     .tab-active { border-bottom: 2px solid #00b1ea; color: #00b1ea; }
     .tab-inactive { border-bottom: 2px solid transparent; color: #94a3b8; }
     .tab-inactive:hover { color: #cbd5e1; border-bottom-color: #475569; }
-    .btn-acertou { background: #059669; }
-    .btn-acertou:hover { background: #047857; }
-    .btn-acertou.active { background: #10b981; box-shadow: 0 0 0 2px #10b981, 0 0 0 4px #064e3b; }
-    .btn-errou { background: #dc2626; }
-    .btn-errou:hover { background: #b91c1c; }
-    .btn-errou.active { background: #ef4444; box-shadow: 0 0 0 2px #ef4444, 0 0 0 4px #7f1d1d; }
+    .btn-acertou { background: transparent; border: 1.5px solid #166534; color: #4ade80; }
+    .btn-acertou:hover { background: #14532d; border-color: #16a34a; }
+    .btn-acertou.active { background: #15803d; border-color: #4ade80; color: #fff; font-weight: 800; box-shadow: 0 0 0 3px #4ade8055; }
+    .btn-errou { background: transparent; border: 1.5px solid #7f1d1d; color: #f87171; }
+    .btn-errou:hover { background: #450a0a; border-color: #dc2626; }
+    .btn-errou.active { background: #b91c1c; border-color: #f87171; color: #fff; font-weight: 800; box-shadow: 0 0 0 3px #f8717155; }
+    .btn-np { background: transparent; border: 1.5px solid #334155; color: #64748b; }
+    .btn-np:hover { background: #1e293b; border-color: #475569; }
+    .btn-np.active { background: #334155; border-color: #94a3b8; color: #e2e8f0; font-weight: 800; box-shadow: 0 0 0 3px #94a3b833; }
     .score-bar { transition: width 0.6s ease; }
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
     input, select, textarea { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 0.5rem; padding: 0.5rem 0.75rem; width: 100%; }
@@ -44,8 +47,12 @@
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; padding: 0.75rem 1.25rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.4); animation: fadeIn 0.3s ease; }
     .toast-success { background: #064e3b; border: 1px solid #10b981; color: #6ee7b7; }
     .toast-error { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; }
-    .tech-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid #334155; background: #0f172a; color: #94a3b8; transition: all 0.15s; }
-    .tech-chip.selected { background: #0c4a6e; border-color: #0ea5e9; color: #38bdf8; }
+    .tech-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid #334155; background: #0f172a; color: #64748b; transition: all 0.15s; }
+    .tech-chip:hover { border-color: #475569; color: #94a3b8; }
+    .tech-chip.selected { background: #0c4a6e; border-color: #0ea5e9; color: #38bdf8; box-shadow: 0 0 0 1px #0ea5e933; }
+    .tech-group-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 0.4rem 0.6rem; border-radius: 0.5rem; background: #1e293b; border: 1px solid #334155; user-select: none; }
+    .tech-group-header:hover { background: #263348; }
+    .tech-group-body { overflow: hidden; transition: max-height 0.2s ease; }
   </style>
 </head>
 <body class="min-h-screen">
@@ -154,11 +161,19 @@
                 <option value="">— Selecionar vaga —</option>
               </select>
             </div>
+            <div class="col-span-2">
+              <label class="text-xs text-slate-400 mb-1 block">Aceita presencialidade 2x por semana?</label>
+              <select id="cand-presencialidade">
+                <option value="">— Não informado —</option>
+                <option value="1">Sim</option>
+                <option value="0">Não</option>
+              </select>
+            </div>
           </div>
 
           <div>
             <label class="text-xs text-slate-400 mb-2 block">Tecnologias que conhece</label>
-            <div id="tech-chips" class="flex flex-wrap gap-2"></div>
+            <div id="tech-chips" class="space-y-2"></div>
           </div>
         </div>
         <div class="flex gap-3 mt-6">
@@ -229,9 +244,17 @@
 const API = '/api';
 let allPerguntas = [];
 let respostasAtivas = {}; // { pergunta_id: true/false }
-let tecSelecionadas = new Set();
+let tecSelecionadas = new Set(); // valores no formato "CATEGORIA::Vendor"
 
-const TECNOLOGIAS = ['FIREWALL','SWITCH','WIFI','IPAM','NAC','GESTÃO CENTRALIZADA','LINGUAGEM DE PROGRAMAÇÃO'];
+const TECNOLOGIAS_MAP = {
+  'Firewall':                ['Fortinet FortiGate', 'Palo Alto Networks', 'Check Point', 'Cisco FTD/ASA', 'Sophos XGS', 'pfSense / OPNsense'],
+  'Switch':                  ['Cisco Catalyst/Nexus', 'HP Aruba', 'Juniper EX/QFX', 'Huawei CloudEngine', 'Ruckus ICX', 'Dell EMC PowerSwitch'],
+  'Wi-Fi':                   ['Cisco Meraki / Catalyst', 'Aruba Networks', 'Ubiquiti UniFi', 'Ruckus SmartZone', 'Fortinet FortiAP', 'Extreme Networks'],
+  'IPAM':                    ['Infoblox', 'NetBox', 'phpIPAM', 'SolarWinds IPAM', 'BlueCat', 'Micetro (Men&Mice)'],
+  'NAC':                     ['Cisco ISE', 'Aruba ClearPass', 'FortiNAC', 'Forescout', 'Portnox', 'PacketFence'],
+  'Gestão Centralizada':     ['FortiManager', 'Aruba Central', 'Cisco DNA Center', 'Juniper Mist', 'SolarWinds NMS', 'PRTG Network Monitor'],
+  'Linguagem / Automação':   ['Python', 'Ansible', 'Terraform', 'Bash / Shell', 'PowerShell', 'Go'],
+};
 
 // ─── UTILS ───────────────────────────────────────────
 function showTab(name) {
@@ -424,13 +447,25 @@ async function carregarCandidatos() {
     el.innerHTML = candidatos.map(c => {
       const p = pct(c.pontos_obtidos, c.pontos_totais);
       const lbl = scoreLabel(p);
-      let tecs = [];
+      let tecGroups = {};
       try {
         const raw = typeof c.tecnologias === 'string' ? JSON.parse(c.tecnologias) : c.tecnologias;
         if (raw && typeof raw === 'object') {
-          tecs = Object.entries(raw).filter(([,v]) => v).map(([k]) => k);
+          Object.entries(raw).filter(([,v]) => v).forEach(([k]) => {
+            if (k.includes('::')) {
+              const [cat, vendor] = k.split('::');
+              if (!tecGroups[cat]) tecGroups[cat] = [];
+              tecGroups[cat].push(vendor);
+            }
+          });
         }
       } catch {}
+      const tecHTML = Object.entries(tecGroups).map(([cat, vendors]) => `
+        <div class="mt-1">
+          <span class="text-xs text-slate-500 font-semibold">${cat}:</span>
+          ${vendors.map(v => `<span class="badge-cat px-2 py-0.5 rounded-full text-xs ml-1">${v}</span>`).join('')}
+        </div>
+      `).join('');
       return `
         <div class="card p-4 flex flex-col sm:flex-row sm:items-center gap-4">
           <div class="flex-1">
@@ -438,10 +473,9 @@ async function carregarCandidatos() {
               <span class="font-semibold text-white">${c.nome}</span>
               ${c.vaga_local ? `<span class="badge-cat px-2 py-0.5 rounded-full">${c.vaga_local}</span>` : ''}
             </div>
-            <div class="flex flex-wrap gap-1.5 mt-1">
-              ${tecs.map(t => `<span class="badge-cat px-2 py-0.5 rounded-full">${t}</span>`).join('')}
-            </div>
+            <div class="mt-1">${tecHTML}</div>
             ${c.pretensao_salarial ? `<div class="text-xs text-slate-500 mt-1">💰 ${c.pretensao_salarial}</div>` : ''}
+            ${c.aceita_presencialidade != null ? `<div class="text-xs mt-1 ${c.aceita_presencialidade ? 'text-green-400' : 'text-red-400'}">🏢 Presencialidade 2x/sem: ${c.aceita_presencialidade ? 'Sim' : 'Não'}</div>` : ''}
           </div>
           <div class="sm:text-right flex sm:flex-col items-center sm:items-end gap-3">
             <div>
@@ -479,6 +513,7 @@ function abrirModalCandidato() {
   document.getElementById('cand-nome').value = '';
   document.getElementById('cand-linkedin').value = '';
   document.getElementById('cand-salario').value = '';
+  document.getElementById('cand-presencialidade').value = '';
   document.getElementById('modal-cand-title').textContent = 'Novo Candidato';
   document.getElementById('btn-salvar-cand').textContent = 'Cadastrar';
   tecSelecionadas.clear();
@@ -494,12 +529,13 @@ async function abrirEditarCandidato(id) {
     document.getElementById('cand-nome').value = c.nome || '';
     document.getElementById('cand-linkedin').value = c.linkedin || '';
     document.getElementById('cand-salario').value = c.pretensao_salarial || '';
+    document.getElementById('cand-presencialidade').value = c.aceita_presencialidade != null ? String(c.aceita_presencialidade) : '';
     document.getElementById('modal-cand-title').textContent = 'Editar Candidato';
     document.getElementById('btn-salvar-cand').textContent = 'Salvar Alterações';
     tecSelecionadas.clear();
     try {
       const raw = typeof c.tecnologias === 'string' ? JSON.parse(c.tecnologias) : c.tecnologias;
-      if (raw) Object.entries(raw).forEach(([k, v]) => { if (v) tecSelecionadas.add(k); });
+      if (raw) Object.entries(raw).forEach(([k, v]) => { if (v && k.includes('::')) tecSelecionadas.add(k); });
     } catch {}
     await carregarVagasSelect('cand-vaga');
     if (c.vaga_id) document.getElementById('cand-vaga').value = c.vaga_id;
@@ -510,16 +546,50 @@ async function abrirEditarCandidato(id) {
 
 function renderTechChips() {
   const el = document.getElementById('tech-chips');
-  el.innerHTML = TECNOLOGIAS.map(t => `
-    <span class="tech-chip ${tecSelecionadas.has(t) ? 'selected' : ''}" onclick="toggleTec('${t}', this)">
-      ${t}
-    </span>
-  `).join('');
+  el.innerHTML = Object.entries(TECNOLOGIAS_MAP).map(([cat, vendors]) => {
+    const selectedCount = vendors.filter(v => tecSelecionadas.has(`${cat}::${v}`)).length;
+    const badge = selectedCount > 0
+      ? `<span class="text-xs font-bold text-brand ml-1">${selectedCount}</span>`
+      : '';
+    const chips = vendors.map(v => {
+      const key = `${cat}::${v}`;
+      return `<span class="tech-chip ${tecSelecionadas.has(key) ? 'selected' : ''}" onclick="toggleTec('${key}', this)">${v}</span>`;
+    }).join('');
+    return `
+      <div class="tech-group">
+        <div class="tech-group-header" onclick="toggleTechGroup(this)">
+          <span class="text-xs font-semibold text-slate-300">${cat}${badge}</span>
+          <svg class="w-3.5 h-3.5 text-slate-400 transition-transform" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </div>
+        <div class="tech-group-body max-h-0 overflow-hidden">
+          <div class="flex flex-wrap gap-1.5 pt-2 pb-1 px-1">${chips}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
-function toggleTec(t, el) {
-  if (tecSelecionadas.has(t)) { tecSelecionadas.delete(t); el.classList.remove('selected'); }
-  else { tecSelecionadas.add(t); el.classList.add('selected'); }
+function toggleTechGroup(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('svg');
+  const isOpen = body.style.maxHeight && body.style.maxHeight !== '0px';
+  body.style.maxHeight = isOpen ? '0px' : body.scrollHeight + 'px';
+  icon.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function toggleTec(key, el) {
+  if (tecSelecionadas.has(key)) { tecSelecionadas.delete(key); el.classList.remove('selected'); }
+  else { tecSelecionadas.add(key); el.classList.add('selected'); }
+  // atualiza badge da categoria
+  const body = el.closest('.tech-group-body');
+  const header = body.previousElementSibling;
+  const cat = key.split('::')[0];
+  const vendors = TECNOLOGIAS_MAP[cat];
+  const count = vendors.filter(v => tecSelecionadas.has(`${cat}::${v}`)).length;
+  const span = header.querySelector('span');
+  const existing = span.querySelector('span');
+  if (existing) existing.remove();
+  if (count > 0) span.insertAdjacentHTML('beforeend', `<span class="text-xs font-bold text-brand ml-1">${count}</span>`);
 }
 
 async function salvarCandidato() {
@@ -528,17 +598,19 @@ async function salvarCandidato() {
   const linkedin = document.getElementById('cand-linkedin').value.trim();
   const pretensao_salarial = document.getElementById('cand-salario').value.trim();
   const vaga_id = document.getElementById('cand-vaga').value;
+  const presencialidadeVal = document.getElementById('cand-presencialidade').value;
+  const aceita_presencialidade = presencialidadeVal === '' ? null : presencialidadeVal === '1';
   if (!nome) return toast('Informe o nome do candidato', 'error');
 
   const tecnologias = {};
-  TECNOLOGIAS.forEach(t => { tecnologias[t] = tecSelecionadas.has(t); });
+  tecSelecionadas.forEach(key => { tecnologias[key] = true; });
 
   try {
     if (id) {
-      await api('/candidatos/' + id, { method: 'PUT', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias }) });
+      await api('/candidatos/' + id, { method: 'PUT', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade }) });
       toast('Candidato atualizado!');
     } else {
-      await api('/candidatos', { method: 'POST', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias }) });
+      await api('/candidatos', { method: 'POST', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade }) });
       toast('Candidato cadastrado!');
     }
     fecharModalCandidato();
@@ -598,6 +670,7 @@ function renderPergunta(p) {
   const resp = respostasAtivas[p.id];
   const acertouClass = resp === true ? 'active' : '';
   const errouClass = resp === false ? 'active' : '';
+  const npClass = resp === null ? 'active' : '';
   const difBadge = p.dificuldade === 'HARD'
     ? '<span class="badge-hard text-xs px-2 py-0.5 rounded-full font-semibold">HARD</span>'
     : p.dificuldade === 'MEDIUM'
@@ -616,8 +689,10 @@ function renderPergunta(p) {
     </button>
   ` : '';
 
+  const rowBg = resp === true ? 'bg-green-950/30' : resp === false ? 'bg-red-950/30' : resp === null ? 'bg-slate-800/20' : '';
+
   return `
-    <div class="px-5 py-3.5 flex items-start gap-4 hover:bg-slate-800/30 transition-colors" id="perg-row-${p.id}">
+    <div class="px-5 py-3.5 flex items-start gap-4 transition-colors ${rowBg}" id="perg-row-${p.id}">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-0.5">
           ${difBadge}
@@ -627,8 +702,9 @@ function renderPergunta(p) {
         ${gabarito}
       </div>
       <div class="flex gap-2 shrink-0 mt-1">
-        <button onclick="marcarResposta(${p.id}, true)" id="btn-acertou-${p.id}" class="btn-acertou ${acertouClass} text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all">✓ Acertou</button>
-        <button onclick="marcarResposta(${p.id}, false)" id="btn-errou-${p.id}" class="btn-errou ${errouClass} text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all">✗ Errou</button>
+        <button onclick="marcarResposta(${p.id}, true)" id="btn-acertou-${p.id}" class="btn-acertou ${acertouClass} text-xs px-3 py-1.5 rounded-lg transition-all">✓ Acertou</button>
+        <button onclick="marcarResposta(${p.id}, false)" id="btn-errou-${p.id}" class="btn-errou ${errouClass} text-xs px-3 py-1.5 rounded-lg transition-all">✗ Errou</button>
+        <button onclick="marcarResposta(${p.id}, null)" id="btn-np-${p.id}" class="btn-np ${npClass} text-xs px-3 py-1.5 rounded-lg transition-all">— N/P</button>
       </div>
     </div>
   `;
@@ -649,21 +725,30 @@ function marcarResposta(perguntaId, acertou) {
 
   const btnA = document.getElementById(`btn-acertou-${perguntaId}`);
   const btnE = document.getElementById(`btn-errou-${perguntaId}`);
+  const btnN = document.getElementById(`btn-np-${perguntaId}`);
   btnA.classList.toggle('active', acertou === true);
   btnE.classList.toggle('active', acertou === false);
+  btnN.classList.toggle('active', acertou === null);
+
+  const row = document.getElementById(`perg-row-${perguntaId}`);
+  row.classList.remove('bg-green-950/30', 'bg-red-950/30', 'bg-slate-800/20');
+  if (acertou === true) row.classList.add('bg-green-950/30');
+  else if (acertou === false) row.classList.add('bg-red-950/30');
+  else if (acertou === null) row.classList.add('bg-slate-800/20');
 
   atualizarScoreInline();
 }
 
 function atualizarScoreInline() {
-  const respondidas = Object.keys(respostasAtivas).length;
-  if (!respondidas) { document.getElementById('quiz-score-inline').classList.add('hidden'); return; }
+  const marcadas = Object.keys(respostasAtivas).length;
+  if (!marcadas) { document.getElementById('quiz-score-inline').classList.add('hidden'); return; }
 
   let obtidos = 0, total = 0;
   allPerguntas.forEach(p => {
-    if (respostasAtivas[p.id] !== undefined) {
+    const resp = respostasAtivas[p.id];
+    if (resp !== undefined && resp !== null) {
       total += p.pontos;
-      if (respostasAtivas[p.id]) obtidos += p.pontos;
+      if (resp === true) obtidos += p.pontos;
     }
   });
   const p = pct(obtidos, total);
@@ -678,7 +763,9 @@ async function carregarRespostasExistentes() {
 
   try {
     const c = await api('/candidatos/' + candidatoId);
-    c.respostas.forEach(r => { respostasAtivas[r.pergunta_id] = r.acertou === 1 || r.acertou === true; });
+    c.respostas.forEach(r => {
+      respostasAtivas[r.pergunta_id] = r.acertou === null ? null : (r.acertou === 1 || r.acertou === true);
+    });
     renderPerguntas();
     atualizarScoreInline();
   } catch (e) { toast(e.message, 'error'); }
@@ -689,7 +776,7 @@ async function salvarRespostas() {
   if (!candidatoId) return toast('Selecione um candidato primeiro', 'error');
   if (!Object.keys(respostasAtivas).length) return toast('Nenhuma resposta marcada', 'error');
 
-  const respostas = Object.entries(respostasAtivas).map(([pergunta_id, acertou]) => ({ pergunta_id: Number(pergunta_id), acertou }));
+  const respostas = Object.entries(respostasAtivas).map(([pergunta_id, acertou]) => ({ pergunta_id: Number(pergunta_id), acertou: acertou === null ? null : acertou }));
 
   try {
     const r = await api(`/candidatos/${candidatoId}/respostas`, { method: 'POST', body: JSON.stringify({ respostas }) });

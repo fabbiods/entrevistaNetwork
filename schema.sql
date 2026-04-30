@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS candidatos (
   pretensao_salarial VARCHAR(100),
   vaga_id INT,
   tecnologias JSON,
+  aceita_presencialidade TINYINT(1) DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (vaga_id) REFERENCES vagas(id) ON DELETE SET NULL
 );
@@ -31,7 +32,7 @@ CREATE TABLE IF NOT EXISTS respostas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   candidato_id INT NOT NULL,
   pergunta_id INT NOT NULL,
-  acertou BOOLEAN NOT NULL,
+  acertou TINYINT(1) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (candidato_id) REFERENCES candidatos(id) ON DELETE CASCADE,
   FOREIGN KEY (pergunta_id) REFERENCES perguntas(id) ON DELETE CASCADE,

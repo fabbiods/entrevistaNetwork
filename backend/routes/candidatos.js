@@ -12,9 +12,9 @@ router.get('/', async (req, res) => {
       SELECT
         c.*,
         v.local as vaga_local,
-        COUNT(r.id) as perguntas_respondidas,
+        SUM(CASE WHEN r.acertou IS NOT NULL THEN 1 ELSE 0 END) as perguntas_respondidas,
         SUM(CASE WHEN r.acertou = 1 THEN p.pontos ELSE 0 END) as pontos_obtidos,
-        SUM(p.pontos) as pontos_totais
+        SUM(CASE WHEN r.acertou IS NOT NULL THEN p.pontos ELSE 0 END) as pontos_totais
       FROM candidatos c
       LEFT JOIN vagas v ON v.id = c.vaga_id
       LEFT JOIN respostas r ON r.candidato_id = c.id
@@ -52,12 +52,12 @@ router.get('/:id', async (req, res) => {
 
 // POST create candidato
 router.post('/', async (req, res) => {
-  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias } = req.body;
+  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     const [result] = await db.query(
-      'INSERT INTO candidatos (nome, linkedin, pretensao_salarial, vaga_id, tecnologias) VALUES (?, ?, ?, ?, ?)',
-      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {})]
+      'INSERT INTO candidatos (nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade) VALUES (?, ?, ?, ?, ?, ?)',
+      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null]
     );
     res.status(201).json({ id: result.insertId, nome });
   } catch (err) {
@@ -67,12 +67,12 @@ router.post('/', async (req, res) => {
 
 // PUT update candidato
 router.put('/:id', async (req, res) => {
-  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias } = req.body;
+  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     await db.query(
-      'UPDATE candidatos SET nome = ?, linkedin = ?, pretensao_salarial = ?, vaga_id = ?, tecnologias = ? WHERE id = ?',
-      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), req.params.id]
+      'UPDATE candidatos SET nome = ?, linkedin = ?, pretensao_salarial = ?, vaga_id = ?, tecnologias = ?, aceita_presencialidade = ? WHERE id = ?',
+      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, req.params.id]
     );
     res.json({ success: true });
   } catch (err) {
@@ -91,7 +91,7 @@ router.post('/:id/respostas', async (req, res) => {
     for (const r of respostas) {
       await db.query(
         'INSERT INTO respostas (candidato_id, pergunta_id, acertou) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE acertou = VALUES(acertou)',
-        [candidato_id, r.pergunta_id, r.acertou ? 1 : 0]
+        [candidato_id, r.pergunta_id, r.acertou === null ? null : (r.acertou ? 1 : 0)]
       );
     }
     res.json({ success: true, saved: respostas.length });
