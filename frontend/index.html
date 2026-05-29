@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IS Network — Sistema de Entrevistas | Mercado Livre</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -169,6 +171,16 @@
                 <option value="0">Não</option>
               </select>
             </div>
+            <div class="col-span-2">
+              <label class="text-xs text-slate-400 mb-1 block">Teste Técnico</label>
+              <select id="cand-teste-tecnico">
+                <option value="">— Não informado —</option>
+                <option value="Nao Enviado">Não Enviado</option>
+                <option value="Enviado">Enviado</option>
+                <option value="Finalizado">Finalizado</option>
+                <option value="Nao Concluido">Não Concluído</option>
+              </select>
+            </div>
           </div>
 
           <div>
@@ -282,6 +294,11 @@ function toast(msg, type = 'success') {
 function pct(obtained, total) {
   if (!total) return 0;
   return Math.round((obtained / total) * 100);
+}
+
+function toggleTec(uid) {
+  document.getElementById(uid + '-summary').classList.toggle('hidden');
+  document.getElementById(uid + '-detail').classList.toggle('hidden');
 }
 
 function scoreColor(p) {
@@ -460,12 +477,28 @@ async function carregarCandidatos() {
           });
         }
       } catch {}
-      const tecHTML = Object.entries(tecGroups).map(([cat, vendors]) => `
+      const catCount = Object.keys(tecGroups).length;
+      const totalVendors = Object.values(tecGroups).flat().length;
+      const uid = 'tec-' + c.id;
+      const tecSummary = catCount > 0
+        ? Object.entries(tecGroups).map(([cat, vendors]) => `<span class="badge-cat px-2 py-0.5 rounded-full text-xs" title="${vendors.join(', ')}">${cat} <span class="opacity-60">(${vendors.length})</span></span>`).join(' ')
+        : '';
+      const tecDetail = Object.entries(tecGroups).map(([cat, vendors]) => `
         <div class="mt-1">
           <span class="text-xs text-slate-500 font-semibold">${cat}:</span>
           ${vendors.map(v => `<span class="badge-cat px-2 py-0.5 rounded-full text-xs ml-1">${v}</span>`).join('')}
         </div>
       `).join('');
+      const tecHTML = catCount > 0 ? `
+        <div class="mt-1">
+          <div id="${uid}-summary" class="flex flex-wrap gap-1 items-center">
+            ${tecSummary}
+            <button onclick="toggleTec('${uid}')" class="text-xs text-slate-500 hover:text-slate-300 ml-1 transition-colors">▼ ver</button>
+          </div>
+          <div id="${uid}-detail" class="hidden">${tecDetail}
+            <button onclick="toggleTec('${uid}')" class="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors">▲ ocultar</button>
+          </div>
+        </div>` : '';
       return `
         <div class="card p-4 flex flex-col sm:flex-row sm:items-center gap-4">
           <div class="flex-1">
@@ -476,6 +509,7 @@ async function carregarCandidatos() {
             <div class="mt-1">${tecHTML}</div>
             ${c.pretensao_salarial ? `<div class="text-xs text-slate-500 mt-1">💰 ${c.pretensao_salarial}</div>` : ''}
             ${c.aceita_presencialidade != null ? `<div class="text-xs mt-1 ${c.aceita_presencialidade ? 'text-green-400' : 'text-red-400'}">🏢 Presencialidade 2x/sem: ${c.aceita_presencialidade ? 'Sim' : 'Não'}</div>` : ''}
+            ${c.teste_tecnico ? `<div class="text-xs mt-1 ${ c.teste_tecnico === 'Finalizado' ? 'text-green-400' : c.teste_tecnico === 'Enviado' ? 'text-yellow-400' : c.teste_tecnico === 'Nao Enviado' ? 'text-slate-400' : 'text-red-400' }">📋 Teste Técnico: ${ {'Nao Enviado':'Não Enviado','Nao Concluido':'Não Concluído'}[c.teste_tecnico] || c.teste_tecnico }</div>` : ''}
           </div>
           <div class="sm:text-right flex sm:flex-col items-center sm:items-end gap-3">
             <div>
@@ -514,6 +548,7 @@ function abrirModalCandidato() {
   document.getElementById('cand-linkedin').value = '';
   document.getElementById('cand-salario').value = '';
   document.getElementById('cand-presencialidade').value = '';
+  document.getElementById('cand-teste-tecnico').value = '';
   document.getElementById('modal-cand-title').textContent = 'Novo Candidato';
   document.getElementById('btn-salvar-cand').textContent = 'Cadastrar';
   tecSelecionadas.clear();
@@ -530,6 +565,7 @@ async function abrirEditarCandidato(id) {
     document.getElementById('cand-linkedin').value = c.linkedin || '';
     document.getElementById('cand-salario').value = c.pretensao_salarial || '';
     document.getElementById('cand-presencialidade').value = c.aceita_presencialidade != null ? String(c.aceita_presencialidade) : '';
+    document.getElementById('cand-teste-tecnico').value = c.teste_tecnico || '';
     document.getElementById('modal-cand-title').textContent = 'Editar Candidato';
     document.getElementById('btn-salvar-cand').textContent = 'Salvar Alterações';
     tecSelecionadas.clear();
@@ -600,6 +636,7 @@ async function salvarCandidato() {
   const vaga_id = document.getElementById('cand-vaga').value;
   const presencialidadeVal = document.getElementById('cand-presencialidade').value;
   const aceita_presencialidade = presencialidadeVal === '' ? null : presencialidadeVal === '1';
+  const teste_tecnico = document.getElementById('cand-teste-tecnico').value || null;
   if (!nome) return toast('Informe o nome do candidato', 'error');
 
   const tecnologias = {};
@@ -607,10 +644,10 @@ async function salvarCandidato() {
 
   try {
     if (id) {
-      await api('/candidatos/' + id, { method: 'PUT', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade }) });
+      await api('/candidatos/' + id, { method: 'PUT', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade, teste_tecnico }) });
       toast('Candidato atualizado!');
     } else {
-      await api('/candidatos', { method: 'POST', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade }) });
+      await api('/candidatos', { method: 'POST', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade, teste_tecnico }) });
       toast('Candidato cadastrado!');
     }
     fecharModalCandidato();
@@ -854,6 +891,10 @@ async function carregarDashboard() {
             </div>
             <span class="border text-xs font-bold px-2 py-0.5 rounded-full ${lbl.cls}">${lbl.text}</span>
           </div>
+          <button onclick="exportarPDFCandidato(${c.id})" title="Exportar PDF" class="mt-1 flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            PDF
+          </button>
         </div>
       `;
     }).join('');
@@ -863,6 +904,244 @@ async function carregarDashboard() {
     if (vagaId) document.getElementById('dash-filtro-vaga').value = vagaId;
 
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── PDF EXPORT ──────────────────────────────────────
+async function exportarPDFCandidato(id) {
+  try {
+    const c = await api(`/candidatos/${id}`);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, margin = 14;
+
+    // ── Header bar ──
+    doc.setFillColor(0, 177, 234);
+    doc.rect(0, 0, W, 22, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('IS Network — Sistema de Entrevistas', margin, 9);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Mercado Livre', margin, 15);
+    doc.setFontSize(8);
+    doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}`, W - margin, 15, { align: 'right' });
+
+    let y = 32;
+
+    // ── Candidate name ──
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(c.nome, margin, y);
+    y += 6;
+
+    // ── Meta info ──
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    const metaItems = [];
+    if (c.vaga_local) metaItems.push(`Vaga: ${c.vaga_local}`);
+    if (c.linkedin) metaItems.push(`LinkedIn: ${c.linkedin}`);
+    if (c.pretensao_salarial) metaItems.push(`Pretensão: R$ ${Number(c.pretensao_salarial).toLocaleString('pt-BR')}`);
+    if (c.aceita_presencialidade != null) metaItems.push(`Presencialidade: ${c.aceita_presencialidade ? 'Sim' : 'Não'}`);
+    doc.text(metaItems.join('   ·   '), margin, y);
+    y += 10;
+
+    // ── Score summary box ──
+    const respostas = c.respostas || [];
+    const respondidas = respostas.filter(r => r.acertou !== null).length;
+    const pontos_obtidos = respostas.filter(r => r.acertou == 1).reduce((s, r) => s + Number(r.pontos), 0);
+    const pontos_totais  = respostas.filter(r => r.acertou !== null).reduce((s, r) => s + Number(r.pontos), 0);
+    const scoreVal = pontos_totais ? Math.round((pontos_obtidos / pontos_totais) * 100) : 0;
+
+    const scoreClr = scoreVal >= 75 ? [5, 150, 105] : scoreVal >= 50 ? [202, 138, 4] : [220, 38, 38];
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(margin, y, W - margin * 2, 22, 3, 3, 'F');
+
+    const colW = (W - margin * 2) / 4;
+    [
+      { label: 'Score Geral', value: `${scoreVal}%` },
+      { label: 'Pontos', value: `${pontos_obtidos} / ${pontos_totais}` },
+      { label: 'Respondidas', value: `${respondidas} / 52` },
+      { label: 'Classificação', value: scoreVal >= 75 ? 'Aprovado' : scoreVal >= 50 ? 'Regular' : 'Reprovado' },
+    ].forEach((item, i) => {
+      const cx = margin + colW * i + colW / 2;
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...(i === 3 ? scoreClr : scoreClr));
+      doc.text(item.value, cx, y + 11, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(item.label, cx, y + 17, { align: 'center' });
+    });
+    y += 28;
+
+    // ── KPI: Distribuição de respostas + Score por dificuldade ──
+    const acertos = respostas.filter(r => r.acertou == 1).length;
+    const erros    = respostas.filter(r => r.acertou == 0).length;
+    const np       = respostas.filter(r => r.acertou === null).length;
+
+    // Bloco esquerdo: distribuição
+    const kpiX = margin, kpiW = (W - margin * 2) / 2 - 4;
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(kpiX, y, kpiW, 28, 3, 3, 'F');
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+    doc.text('Distribuição de Respostas', kpiX + 4, y + 6);
+
+    const distItems = [
+      { label: 'Acertou', val: acertos, clr: [5, 150, 105] },
+      { label: 'Errou',   val: erros,   clr: [220, 38, 38]  },
+      { label: 'N/P',     val: np,      clr: [148, 163, 184] },
+    ];
+    const barMaxW = kpiW - 40;
+    distItems.forEach((item, i) => {
+      const by = y + 11 + i * 6;
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+      doc.text(item.label, kpiX + 4, by + 3);
+      doc.setFillColor(226, 232, 240);
+      doc.roundedRect(kpiX + 20, by, barMaxW, 4, 1, 1, 'F');
+      const answeredTotal = acertos + erros;
+      const filledW = answeredTotal ? (item.val / answeredTotal) * barMaxW : 0;
+      if (filledW > 0) { doc.setFillColor(...item.clr); doc.roundedRect(kpiX + 20, by, filledW, 4, 1, 1, 'F'); }
+      doc.setFontSize(7); doc.setTextColor(...item.clr); doc.setFont('helvetica', 'bold');
+      doc.text(String(item.val), kpiX + kpiW - 4, by + 3.5, { align: 'right' });
+    });
+
+    // Bloco direito: score por dificuldade
+    const dif2x = margin + kpiW + 8;
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(dif2x, y, kpiW, 28, 3, 3, 'F');
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+    doc.text('Score por Dificuldade', dif2x + 4, y + 6);
+
+    const difs = ['Normal', 'Médio', 'Difícil'];
+    const difClrs = { 'Normal': [59, 130, 246], 'Médio': [202, 138, 4], 'Difícil': [220, 38, 38] };
+    difs.forEach((d, i) => {
+      const dResp = respostas.filter(r => r.dificuldade === d && r.acertou !== null);
+      const dAcertos = dResp.filter(r => r.acertou == 1).length;
+      const dPct = dResp.length ? Math.round((dAcertos / dResp.length) * 100) : 0;
+      const by = y + 11 + i * 6;
+      doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+      doc.text(d, dif2x + 4, by + 3);
+      doc.setFillColor(226, 232, 240);
+      doc.roundedRect(dif2x + 20, by, barMaxW, 4, 1, 1, 'F');
+      const fw = (dPct / 100) * barMaxW;
+      if (fw > 0) { doc.setFillColor(...(difClrs[d] || [100,116,139])); doc.roundedRect(dif2x + 20, by, fw, 4, 1, 1, 'F'); }
+      doc.setFontSize(7); doc.setTextColor(...(difClrs[d] || [100,116,139])); doc.setFont('helvetica', 'bold');
+      doc.text(`${dPct}%`, dif2x + kpiW - 4, by + 3.5, { align: 'right' });
+    });
+    y += 34;
+
+    // ── KPI: Score por categoria ──
+    const categorias = [...new Set(respostas.map(r => r.categoria).filter(Boolean))];
+    if (categorias.length) {
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+      doc.text('Score por Categoria', margin, y + 4);
+      y += 8;
+
+      const cols = 2, cellH = 14, cellW = (W - margin * 2) / cols;
+      categorias.forEach((cat, i) => {
+        const cx = margin + (i % cols) * cellW;
+        const cy = y + Math.floor(i / cols) * (cellH + 3);
+        const catResp = respostas.filter(r => r.categoria === cat && r.acertou !== null);
+        const catAcertos = catResp.filter(r => r.acertou == 1).length;
+        const catPct = catResp.length ? Math.round((catAcertos / catResp.length) * 100) : 0;
+        const barClr = catPct >= 75 ? [5,150,105] : catPct >= 50 ? [202,138,4] : [220,38,38];
+
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(cx, cy, cellW - 4, cellH, 2, 2, 'F');
+        doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
+        doc.text(cat, cx + 3, cy + 5);
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+        doc.text(`${catAcertos}/${catResp.length}`, cx + 3, cy + 10);
+
+        const bx = cx + 38, bw = cellW - 4 - 38 - 14;
+        doc.setFillColor(226, 232, 240);
+        doc.roundedRect(bx, cy + 6, bw, 3.5, 1, 1, 'F');
+        if (catPct > 0) { doc.setFillColor(...barClr); doc.roundedRect(bx, cy + 6, (catPct/100)*bw, 3.5, 1, 1, 'F'); }
+        doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...barClr);
+        doc.text(`${catPct}%`, cx + cellW - 7, cy + 9.5, { align: 'right' });
+      });
+      y += Math.ceil(categorias.length / cols) * (cellH + 3) + 4;
+    }
+
+    // ── Technologies ──
+    let tecs = [];
+    try {
+      const raw = typeof c.tecnologias === 'string' ? JSON.parse(c.tecnologias) : c.tecnologias;
+      if (raw && typeof raw === 'object') tecs = Object.entries(raw).filter(([,v]) => v).map(([k]) => k);
+    } catch {}
+    if (tecs.length) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('Tecnologias', margin, y);
+      y += 5;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      const tecLine = tecs.join('   ·   ');
+      const wrapped = doc.splitTextToSize(tecLine, W - margin * 2);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 4 + 5;
+    }
+
+    // ── Responses table ──
+    if (respostas.length) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('Respostas por Categoria', margin, y);
+      y += 4;
+
+      const tableRows = respostas.map(r => {
+        const status = r.acertou == 1 ? 'Acertou' : r.acertou == 0 ? 'Errou' : 'N/P';
+        return [r.categoria || '—', r.texto, status, `${r.pontos}pt`];
+      });
+
+      doc.autoTable({
+        startY: y,
+        head: [['Categoria', 'Pergunta', 'Resultado', 'Pts']],
+        body: tableRows,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 7.5, cellPadding: 2.5, overflow: 'linebreak', textColor: [30, 41, 59] },
+        headStyles: { fillColor: [0, 177, 234], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        columnStyles: {
+          0: { cellWidth: 32 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 18, halign: 'center' },
+          3: { cellWidth: 10, halign: 'center' },
+        },
+        didParseCell: (data) => {
+          if (data.column.index === 2 && data.section === 'body') {
+            const v = data.cell.raw;
+            if (v === 'Acertou') data.cell.styles.textColor = [5, 150, 105];
+            else if (v === 'Errou') data.cell.styles.textColor = [220, 38, 38];
+            else data.cell.styles.textColor = [100, 116, 139];
+          }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+    }
+
+    // ── Footer ──
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`IS Network / Mercado Livre — Confidencial`, margin, 292);
+      doc.text(`${i} / ${pageCount}`, W - margin, 292, { align: 'right' });
+    }
+
+    const nomeArq = c.nome.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    doc.save(`entrevista_${nomeArq}.pdf`);
+    toast('PDF exportado com sucesso!');
+  } catch (e) {
+    toast('Erro ao gerar PDF: ' + e.message, 'error');
+  }
 }
 
 // ─── INIT ────────────────────────────────────────────

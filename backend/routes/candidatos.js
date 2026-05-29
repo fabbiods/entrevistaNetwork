@@ -52,12 +52,12 @@ router.get('/:id', async (req, res) => {
 
 // POST create candidato
 router.post('/', async (req, res) => {
-  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade } = req.body;
+  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     const [result] = await db.query(
-      'INSERT INTO candidatos (nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade) VALUES (?, ?, ?, ?, ?, ?)',
-      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null]
+      'INSERT INTO candidatos (nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, teste_tecnico || null]
     );
     res.status(201).json({ id: result.insertId, nome });
   } catch (err) {
@@ -67,12 +67,12 @@ router.post('/', async (req, res) => {
 
 // PUT update candidato
 router.put('/:id', async (req, res) => {
-  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade } = req.body;
+  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     await db.query(
-      'UPDATE candidatos SET nome = ?, linkedin = ?, pretensao_salarial = ?, vaga_id = ?, tecnologias = ?, aceita_presencialidade = ? WHERE id = ?',
-      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, req.params.id]
+      'UPDATE candidatos SET nome = ?, linkedin = ?, pretensao_salarial = ?, vaga_id = ?, tecnologias = ?, aceita_presencialidade = ?, teste_tecnico = ? WHERE id = ?',
+      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, teste_tecnico || null, req.params.id]
     );
     res.json({ success: true });
   } catch (err) {
