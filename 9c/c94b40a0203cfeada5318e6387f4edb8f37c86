@@ -1,0 +1,44 @@
+backend/routes/candidatos.js
+  83c763366bf011c7 55,59-60,70,74-75
+frontend/index.html
+  83c763366bf011c7 174-183,299-303,480-486,492-501,512,551,568,639,647,650
+  s_cc0ad5b6aeb9b0::t_2d1df0b5cbea7f 8-9
+  s_cc0ad5b6aeb9b0::t_d335945f917a1b 1048
+  s_cc0ad5b6aeb9b0::t_95a523ec115fcc 894-897
+  s_cc0ad5b6aeb9b0::t_c74f2c2a4f166a 909-952,954,956-980,1070-1146
+  s_cc0ad5b6aeb9b0::t_5fd5e57ad46a03 953,955
+  s_cc0ad5b6aeb9b0::t_d7c99e43813124 981-1004,1007-1021,1023-1047,1049-1069
+  s_cc0ad5b6aeb9b0::t_b419e04b7f9e36 1022
+  s_cc0ad5b6aeb9b0::t_94da495f81071d 1005-1006
+backend/db.js
+  83c763366bf011c7 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9cc94b40a0203cfeada5318e6387f4edb8f37c86",
+  "prompts": {
+    "83c763366bf011c7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92d427de-0922-4ed7-8079-bae942233a04",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "dsfabbio <fabio.silva@mercadolivre.com>",
+      "total_additions": 50,
+      "total_deletions": 15,
+      "accepted_lines": 45,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_cc0ad5b6aeb9b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7dfd48c0-dfad-4879-a287-8d57606359e7",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "dsfabbio <fabio.silva@mercadolivre.com>"
+    }
+  }
+}
