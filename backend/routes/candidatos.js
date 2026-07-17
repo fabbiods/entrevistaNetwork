@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
         c.*,
         v.local as vaga_local,
         SUM(CASE WHEN r.acertou IS NOT NULL THEN 1 ELSE 0 END) as perguntas_respondidas,
-        SUM(CASE WHEN r.acertou = 1 THEN p.pontos ELSE 0 END) as pontos_obtidos,
+        SUM(CASE WHEN r.acertou = 1 THEN p.pontos WHEN r.acertou = 2 THEN p.pontos * 0.5 ELSE 0 END) as pontos_obtidos,
         SUM(CASE WHEN r.acertou IS NOT NULL THEN p.pontos ELSE 0 END) as pontos_totais
       FROM candidatos c
       LEFT JOIN vagas v ON v.id = c.vaga_id
@@ -52,12 +52,12 @@ router.get('/:id', async (req, res) => {
 
 // POST create candidato
 router.post('/', async (req, res) => {
-  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico } = req.body;
+  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico, endereco, observacoes } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     const [result] = await db.query(
-      'INSERT INTO candidatos (nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, teste_tecnico || null]
+      'INSERT INTO candidatos (nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico, endereco, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, teste_tecnico || null, endereco || null, observacoes || null]
     );
     res.status(201).json({ id: result.insertId, nome });
   } catch (err) {
@@ -67,12 +67,12 @@ router.post('/', async (req, res) => {
 
 // PUT update candidato
 router.put('/:id', async (req, res) => {
-  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico } = req.body;
+  const { nome, linkedin, pretensao_salarial, vaga_id, tecnologias, aceita_presencialidade, teste_tecnico, endereco, observacoes } = req.body;
   if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     await db.query(
-      'UPDATE candidatos SET nome = ?, linkedin = ?, pretensao_salarial = ?, vaga_id = ?, tecnologias = ?, aceita_presencialidade = ?, teste_tecnico = ? WHERE id = ?',
-      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, teste_tecnico || null, req.params.id]
+      'UPDATE candidatos SET nome = ?, linkedin = ?, pretensao_salarial = ?, vaga_id = ?, tecnologias = ?, aceita_presencialidade = ?, teste_tecnico = ?, endereco = ?, observacoes = ? WHERE id = ?',
+      [nome, linkedin || null, pretensao_salarial || null, vaga_id || null, JSON.stringify(tecnologias || {}), aceita_presencialidade != null ? (aceita_presencialidade ? 1 : 0) : null, teste_tecnico || null, endereco || null, observacoes || null, req.params.id]
     );
     res.json({ success: true });
   } catch (err) {
@@ -91,7 +91,7 @@ router.post('/:id/respostas', async (req, res) => {
     for (const r of respostas) {
       await db.query(
         'INSERT INTO respostas (candidato_id, pergunta_id, acertou) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE acertou = VALUES(acertou)',
-        [candidato_id, r.pergunta_id, r.acertou === null ? null : (r.acertou ? 1 : 0)]
+        [candidato_id, r.pergunta_id, r.acertou === null ? null : (r.acertou === 2 ? 2 : (r.acertou ? 1 : 0))]
       );
     }
     res.json({ success: true, saved: respostas.length });

@@ -33,6 +33,9 @@
     .btn-np { background: transparent; border: 1.5px solid #334155; color: #64748b; }
     .btn-np:hover { background: #1e293b; border-color: #475569; }
     .btn-np.active { background: #334155; border-color: #94a3b8; color: #e2e8f0; font-weight: 800; box-shadow: 0 0 0 3px #94a3b833; }
+    .btn-incompleto { background: transparent; border: 1.5px solid #78350f; color: #fbbf24; }
+    .btn-incompleto:hover { background: #1c1008; border-color: #d97706; }
+    .btn-incompleto.active { background: #92400e; border-color: #fbbf24; color: #fff; font-weight: 800; box-shadow: 0 0 0 3px #fbbf2455; }
     .score-bar { transition: width 0.6s ease; }
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
     input, select, textarea { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 0.5rem; padding: 0.5rem 0.75rem; width: 100%; }
@@ -139,8 +142,8 @@
     <div id="candidatos-list" class="space-y-3"></div>
 
     <!-- Modal Novo/Editar Candidato -->
-    <div id="modal-candidato" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div class="card w-full max-w-lg p-6 my-4">
+    <div id="modal-candidato" class="hidden fixed inset-0 bg-black/60 flex items-start justify-center z-50 p-4 overflow-y-auto">
+      <div class="card w-full max-w-lg p-6 my-8">
         <h2 id="modal-cand-title" class="text-lg font-bold text-white mb-4">Novo Candidato</h2>
         <input type="hidden" id="cand-edit-id" />
         <div class="space-y-4">
@@ -180,6 +183,14 @@
                 <option value="Finalizado">Finalizado</option>
                 <option value="Nao Concluido">Não Concluído</option>
               </select>
+            </div>
+            <div class="col-span-2">
+              <label class="text-xs text-slate-400 mb-1 block">Endereço (cidade/estado)</label>
+              <input id="cand-endereco" type="text" placeholder="Ex: São Paulo, SP" />
+            </div>
+            <div class="col-span-2">
+              <label class="text-xs text-slate-400 mb-1 block">Observações</label>
+              <textarea id="cand-observacoes" rows="3" placeholder="Informações diversas sobre o candidato..." class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-brand resize-none"></textarea>
             </div>
           </div>
 
@@ -549,6 +560,8 @@ function abrirModalCandidato() {
   document.getElementById('cand-salario').value = '';
   document.getElementById('cand-presencialidade').value = '';
   document.getElementById('cand-teste-tecnico').value = '';
+  document.getElementById('cand-endereco').value = '';
+  document.getElementById('cand-observacoes').value = '';
   document.getElementById('modal-cand-title').textContent = 'Novo Candidato';
   document.getElementById('btn-salvar-cand').textContent = 'Cadastrar';
   tecSelecionadas.clear();
@@ -566,6 +579,8 @@ async function abrirEditarCandidato(id) {
     document.getElementById('cand-salario').value = c.pretensao_salarial || '';
     document.getElementById('cand-presencialidade').value = c.aceita_presencialidade != null ? String(c.aceita_presencialidade) : '';
     document.getElementById('cand-teste-tecnico').value = c.teste_tecnico || '';
+    document.getElementById('cand-endereco').value = c.endereco || '';
+    document.getElementById('cand-observacoes').value = c.observacoes || '';
     document.getElementById('modal-cand-title').textContent = 'Editar Candidato';
     document.getElementById('btn-salvar-cand').textContent = 'Salvar Alterações';
     tecSelecionadas.clear();
@@ -637,6 +652,8 @@ async function salvarCandidato() {
   const presencialidadeVal = document.getElementById('cand-presencialidade').value;
   const aceita_presencialidade = presencialidadeVal === '' ? null : presencialidadeVal === '1';
   const teste_tecnico = document.getElementById('cand-teste-tecnico').value || null;
+  const endereco = document.getElementById('cand-endereco').value.trim() || null;
+  const observacoes = document.getElementById('cand-observacoes').value.trim() || null;
   if (!nome) return toast('Informe o nome do candidato', 'error');
 
   const tecnologias = {};
@@ -644,10 +661,10 @@ async function salvarCandidato() {
 
   try {
     if (id) {
-      await api('/candidatos/' + id, { method: 'PUT', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade, teste_tecnico }) });
+      await api('/candidatos/' + id, { method: 'PUT', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade, teste_tecnico, endereco, observacoes }) });
       toast('Candidato atualizado!');
     } else {
-      await api('/candidatos', { method: 'POST', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade, teste_tecnico }) });
+      await api('/candidatos', { method: 'POST', body: JSON.stringify({ nome, linkedin, pretensao_salarial, vaga_id: vaga_id || null, tecnologias, aceita_presencialidade, teste_tecnico, endereco, observacoes }) });
       toast('Candidato cadastrado!');
     }
     fecharModalCandidato();
@@ -708,6 +725,7 @@ function renderPergunta(p) {
   const acertouClass = resp === true ? 'active' : '';
   const errouClass = resp === false ? 'active' : '';
   const npClass = resp === null ? 'active' : '';
+  const incClass = resp === 2 ? 'active' : '';
   const difBadge = p.dificuldade === 'HARD'
     ? '<span class="badge-hard text-xs px-2 py-0.5 rounded-full font-semibold">HARD</span>'
     : p.dificuldade === 'MEDIUM'
@@ -726,7 +744,7 @@ function renderPergunta(p) {
     </button>
   ` : '';
 
-  const rowBg = resp === true ? 'bg-green-950/30' : resp === false ? 'bg-red-950/30' : resp === null ? 'bg-slate-800/20' : '';
+  const rowBg = resp === true ? 'bg-green-950/30' : resp === 2 ? 'bg-amber-950/30' : resp === false ? 'bg-red-950/30' : resp === null ? 'bg-slate-800/20' : '';
 
   return `
     <div class="px-5 py-3.5 flex items-start gap-4 transition-colors ${rowBg}" id="perg-row-${p.id}">
@@ -740,8 +758,9 @@ function renderPergunta(p) {
       </div>
       <div class="flex gap-2 shrink-0 mt-1">
         <button onclick="marcarResposta(${p.id}, true)" id="btn-acertou-${p.id}" class="btn-acertou ${acertouClass} text-xs px-3 py-1.5 rounded-lg transition-all">✓ Acertou</button>
+        <button onclick="marcarResposta(${p.id}, 2)" id="btn-inc-${p.id}" class="btn-incompleto ${incClass} text-xs px-3 py-1.5 rounded-lg transition-all">~ Incompleto</button>
         <button onclick="marcarResposta(${p.id}, false)" id="btn-errou-${p.id}" class="btn-errou ${errouClass} text-xs px-3 py-1.5 rounded-lg transition-all">✗ Errou</button>
-        <button onclick="marcarResposta(${p.id}, null)" id="btn-np-${p.id}" class="btn-np ${npClass} text-xs px-3 py-1.5 rounded-lg transition-all">— N/P</button>
+        <button onclick="marcarResposta(${p.id}, null)" id="btn-np-${p.id}" class="btn-np ${npClass} text-xs px-3 py-1.5 rounded-lg transition-all" title="Não perguntado — não conta no score">— N/P</button>
       </div>
     </div>
   `;
@@ -761,15 +780,18 @@ function marcarResposta(perguntaId, acertou) {
   respostasAtivas[perguntaId] = acertou;
 
   const btnA = document.getElementById(`btn-acertou-${perguntaId}`);
+  const btnI = document.getElementById(`btn-inc-${perguntaId}`);
   const btnE = document.getElementById(`btn-errou-${perguntaId}`);
   const btnN = document.getElementById(`btn-np-${perguntaId}`);
   btnA.classList.toggle('active', acertou === true);
+  btnI.classList.toggle('active', acertou === 2);
   btnE.classList.toggle('active', acertou === false);
   btnN.classList.toggle('active', acertou === null);
 
   const row = document.getElementById(`perg-row-${perguntaId}`);
-  row.classList.remove('bg-green-950/30', 'bg-red-950/30', 'bg-slate-800/20');
+  row.classList.remove('bg-green-950/30', 'bg-amber-950/30', 'bg-red-950/30', 'bg-slate-800/20');
   if (acertou === true) row.classList.add('bg-green-950/30');
+  else if (acertou === 2) row.classList.add('bg-amber-950/30');
   else if (acertou === false) row.classList.add('bg-red-950/30');
   else if (acertou === null) row.classList.add('bg-slate-800/20');
 
@@ -786,11 +808,13 @@ function atualizarScoreInline() {
     if (resp !== undefined && resp !== null) {
       total += p.pontos;
       if (resp === true) obtidos += p.pontos;
+      else if (resp === 2) obtidos += p.pontos * 0.5;
     }
   });
+  if (!total) { document.getElementById('quiz-score-inline').classList.add('hidden'); return; }
   const p = pct(obtidos, total);
   document.getElementById('quiz-score-inline').classList.remove('hidden');
-  document.getElementById('quiz-score-val').textContent = `${obtidos}/${total} pts (${p}%)`;
+  document.getElementById('quiz-score-val').textContent = `${obtidos}/${total} pts (${p}%) — N/P não conta`;
 }
 
 async function carregarRespostasExistentes() {
@@ -801,7 +825,7 @@ async function carregarRespostasExistentes() {
   try {
     const c = await api('/candidatos/' + candidatoId);
     c.respostas.forEach(r => {
-      respostasAtivas[r.pergunta_id] = r.acertou === null ? null : (r.acertou === 1 || r.acertou === true);
+      respostasAtivas[r.pergunta_id] = r.acertou === null ? null : (r.acertou === 2 ? 2 : (r.acertou === 1 || r.acertou === true));
     });
     renderPerguntas();
     atualizarScoreInline();
@@ -951,7 +975,11 @@ async function exportarPDFCandidato(id) {
     // ── Score summary box ──
     const respostas = c.respostas || [];
     const respondidas = respostas.filter(r => r.acertou !== null).length;
-    const pontos_obtidos = respostas.filter(r => r.acertou == 1).reduce((s, r) => s + Number(r.pontos), 0);
+    const pontos_obtidos = respostas.reduce((s, r) => {
+      if (r.acertou == 1) return s + Number(r.pontos);
+      if (r.acertou == 2) return s + Number(r.pontos) * 0.5;
+      return s;
+    }, 0);
     const pontos_totais  = respostas.filter(r => r.acertou !== null).reduce((s, r) => s + Number(r.pontos), 0);
     const scoreVal = pontos_totais ? Math.round((pontos_obtidos / pontos_totais) * 100) : 0;
 
@@ -979,9 +1007,10 @@ async function exportarPDFCandidato(id) {
     y += 28;
 
     // ── KPI: Distribuição de respostas + Score por dificuldade ──
-    const acertos = respostas.filter(r => r.acertou == 1).length;
-    const erros    = respostas.filter(r => r.acertou == 0).length;
-    const np       = respostas.filter(r => r.acertou === null).length;
+    const acertos      = respostas.filter(r => r.acertou == 1).length;
+    const incompletos  = respostas.filter(r => r.acertou == 2).length;
+    const erros        = respostas.filter(r => r.acertou == 0).length;
+    const np           = respostas.filter(r => r.acertou === null).length;
 
     // Bloco esquerdo: distribuição
     const kpiX = margin, kpiW = (W - margin * 2) / 2 - 4;
@@ -991,22 +1020,23 @@ async function exportarPDFCandidato(id) {
     doc.text('Distribuição de Respostas', kpiX + 4, y + 6);
 
     const distItems = [
-      { label: 'Acertou', val: acertos, clr: [5, 150, 105] },
-      { label: 'Errou',   val: erros,   clr: [220, 38, 38]  },
-      { label: 'N/P',     val: np,      clr: [148, 163, 184] },
+      { label: 'Acertou',    val: acertos,     clr: [5, 150, 105]   },
+      { label: 'Incompleto', val: incompletos,  clr: [202, 138, 4]   },
+      { label: 'Errou',      val: erros,        clr: [220, 38, 38]   },
+      { label: 'N/P',        val: np,           clr: [148, 163, 184] },
     ];
     const barMaxW = kpiW - 40;
     distItems.forEach((item, i) => {
-      const by = y + 11 + i * 6;
+      const by = y + 9 + i * 5;
       doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
       doc.text(item.label, kpiX + 4, by + 3);
       doc.setFillColor(226, 232, 240);
-      doc.roundedRect(kpiX + 20, by, barMaxW, 4, 1, 1, 'F');
-      const answeredTotal = acertos + erros;
+      doc.roundedRect(kpiX + 26, by, barMaxW, 3.5, 1, 1, 'F');
+      const answeredTotal = acertos + incompletos + erros;
       const filledW = answeredTotal ? (item.val / answeredTotal) * barMaxW : 0;
-      if (filledW > 0) { doc.setFillColor(...item.clr); doc.roundedRect(kpiX + 20, by, filledW, 4, 1, 1, 'F'); }
+      if (filledW > 0) { doc.setFillColor(...item.clr); doc.roundedRect(kpiX + 26, by, filledW, 3.5, 1, 1, 'F'); }
       doc.setFontSize(7); doc.setTextColor(...item.clr); doc.setFont('helvetica', 'bold');
-      doc.text(String(item.val), kpiX + kpiW - 4, by + 3.5, { align: 'right' });
+      doc.text(String(item.val), kpiX + kpiW - 4, by + 3, { align: 'right' });
     });
 
     // Bloco direito: score por dificuldade
@@ -1097,7 +1127,7 @@ async function exportarPDFCandidato(id) {
       y += 4;
 
       const tableRows = respostas.map(r => {
-        const status = r.acertou == 1 ? 'Acertou' : r.acertou == 0 ? 'Errou' : 'N/P';
+        const status = r.acertou == 1 ? 'Acertou' : r.acertou == 2 ? 'Incompleto' : r.acertou == 0 ? 'Errou' : 'N/P';
         return [r.categoria || '—', r.texto, status, `${r.pontos}pt`];
       });
 
@@ -1118,6 +1148,7 @@ async function exportarPDFCandidato(id) {
           if (data.column.index === 2 && data.section === 'body') {
             const v = data.cell.raw;
             if (v === 'Acertou') data.cell.styles.textColor = [5, 150, 105];
+            else if (v === 'Incompleto') data.cell.styles.textColor = [202, 138, 4];
             else if (v === 'Errou') data.cell.styles.textColor = [220, 38, 38];
             else data.cell.styles.textColor = [100, 116, 139];
           }

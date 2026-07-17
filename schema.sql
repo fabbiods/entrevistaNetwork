@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS respostas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   candidato_id INT NOT NULL,
   pergunta_id INT NOT NULL,
-  acertou TINYINT(1) NULL,
+  acertou TINYINT(1) NULL, -- 1=Acertou, 2=Incompleto(50%), 0=Errou, NULL=N/P(não conta)
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (candidato_id) REFERENCES candidatos(id) ON DELETE CASCADE,
   FOREIGN KEY (pergunta_id) REFERENCES perguntas(id) ON DELETE CASCADE,
